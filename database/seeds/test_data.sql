@@ -1,0 +1,2 @@
+-- Test seed data for development
+-- Users, sample courses, and organization references

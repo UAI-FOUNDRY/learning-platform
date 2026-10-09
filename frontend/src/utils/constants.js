@@ -1,0 +1,15 @@
+export const ROLES = {
+  LEARNER: 'learner',
+  INSTRUCTOR: 'instructor',
+  ADMIN: 'admin'
+};
+
+export const COURSE_STATUS = {
+  DRAFT: 'DRAFT',
+  SUBMITTED: 'SUBMITTED',
+  UNDER_REVIEW: 'UNDER_REVIEW',
+  CHANGES_REQUIRED: 'CHANGES_REQUIRED',
+  APPROVED: 'APPROVED',
+  PUBLISHED: 'PUBLISHED',
+  REJECTED: 'REJECTED'
+};

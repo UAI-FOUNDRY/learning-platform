@@ -1,0 +1,148 @@
+-- Learning Platform PostgreSQL Schema
+-- Contains exactly 16 core entities:
+-- users, organizations, organization_members, courses, categories,
+-- sections, lectures, enrollments, progress, quizzes, questions,
+-- quiz_attempts, assignments, submissions, certificates, reviews.
+
+CREATE TABLE IF NOT EXISTS users (
+    id VARCHAR(64) PRIMARY KEY,
+    email VARCHAR(255) UNIQUE NOT NULL,
+    hashed_password VARCHAR(255) NOT NULL,
+    full_name VARCHAR(255) NOT NULL,
+    role VARCHAR(32) NOT NULL DEFAULT 'learner',
+    created_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP,
+    updated_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP
+);
+
+CREATE TABLE IF NOT EXISTS organizations (
+    id VARCHAR(64) PRIMARY KEY,
+    name VARCHAR(255) NOT NULL,
+    domain VARCHAR(255),
+    created_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP,
+    updated_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP
+);
+
+CREATE TABLE IF NOT EXISTS organization_members (
+    id VARCHAR(64) PRIMARY KEY,
+    organization_id VARCHAR(64) REFERENCES organizations(id) ON DELETE CASCADE,
+    user_id VARCHAR(64) REFERENCES users(id) ON DELETE CASCADE,
+    designation VARCHAR(128),
+    created_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP
+);
+
+CREATE TABLE IF NOT EXISTS categories (
+    id VARCHAR(64) PRIMARY KEY,
+    name VARCHAR(128) NOT NULL,
+    slug VARCHAR(128) UNIQUE NOT NULL,
+    description TEXT,
+    created_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP
+);
+
+CREATE TABLE IF NOT EXISTS courses (
+    id VARCHAR(64) PRIMARY KEY,
+    title VARCHAR(255) NOT NULL,
+    subtitle VARCHAR(255),
+    description TEXT,
+    instructor_id VARCHAR(64) REFERENCES users(id) ON DELETE SET NULL,
+    category_id VARCHAR(64) REFERENCES categories(id) ON DELETE SET NULL,
+    status VARCHAR(32) NOT NULL DEFAULT 'DRAFT',
+    created_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP,
+    updated_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP
+);
+
+CREATE TABLE IF NOT EXISTS sections (
+    id VARCHAR(64) PRIMARY KEY,
+    course_id VARCHAR(64) REFERENCES courses(id) ON DELETE CASCADE,
+    title VARCHAR(255) NOT NULL,
+    order_index INT NOT NULL DEFAULT 0,
+    created_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP
+);
+
+CREATE TABLE IF NOT EXISTS lectures (
+    id VARCHAR(64) PRIMARY KEY,
+    section_id VARCHAR(64) REFERENCES sections(id) ON DELETE CASCADE,
+    title VARCHAR(255) NOT NULL,
+    content_url TEXT,
+    duration INT DEFAULT 0,
+    order_index INT NOT NULL DEFAULT 0,
+    created_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP
+);
+
+CREATE TABLE IF NOT EXISTS enrollments (
+    id VARCHAR(64) PRIMARY KEY,
+    user_id VARCHAR(64) REFERENCES users(id) ON DELETE CASCADE,
+    course_id VARCHAR(64) REFERENCES courses(id) ON DELETE CASCADE,
+    status VARCHAR(32) NOT NULL DEFAULT 'ACTIVE',
+    enrolled_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP,
+    completed_at TIMESTAMP WITH TIME ZONE
+);
+
+CREATE TABLE IF NOT EXISTS progress (
+    id VARCHAR(64) PRIMARY KEY,
+    enrollment_id VARCHAR(64) REFERENCES enrollments(id) ON DELETE CASCADE,
+    lecture_id VARCHAR(64) REFERENCES lectures(id) ON DELETE CASCADE,
+    is_completed BOOLEAN NOT NULL DEFAULT FALSE,
+    updated_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP
+);
+
+CREATE TABLE IF NOT EXISTS quizzes (
+    id VARCHAR(64) PRIMARY KEY,
+    section_id VARCHAR(64) REFERENCES sections(id) ON DELETE CASCADE,
+    title VARCHAR(255) NOT NULL,
+    passing_score INT DEFAULT 70,
+    created_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP
+);
+
+CREATE TABLE IF NOT EXISTS questions (
+    id VARCHAR(64) PRIMARY KEY,
+    quiz_id VARCHAR(64) REFERENCES quizzes(id) ON DELETE CASCADE,
+    prompt TEXT NOT NULL,
+    options JSONB NOT NULL,
+    correct_option VARCHAR(255) NOT NULL,
+    created_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP
+);
+
+CREATE TABLE IF NOT EXISTS quiz_attempts (
+    id VARCHAR(64) PRIMARY KEY,
+    quiz_id VARCHAR(64) REFERENCES quizzes(id) ON DELETE CASCADE,
+    user_id VARCHAR(64) REFERENCES users(id) ON DELETE CASCADE,
+    score INT NOT NULL,
+    passed BOOLEAN NOT NULL DEFAULT FALSE,
+    attempted_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP
+);
+
+CREATE TABLE IF NOT EXISTS assignments (
+    id VARCHAR(64) PRIMARY KEY,
+    section_id VARCHAR(64) REFERENCES sections(id) ON DELETE CASCADE,
+    title VARCHAR(255) NOT NULL,
+    instructions TEXT,
+    deadline TIMESTAMP WITH TIME ZONE,
+    created_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP
+);
+
+CREATE TABLE IF NOT EXISTS submissions (
+    id VARCHAR(64) PRIMARY KEY,
+    assignment_id VARCHAR(64) REFERENCES assignments(id) ON DELETE CASCADE,
+    user_id VARCHAR(64) REFERENCES users(id) ON DELETE CASCADE,
+    submission_url TEXT,
+    grade VARCHAR(32),
+    submitted_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP
+);
+
+CREATE TABLE IF NOT EXISTS certificates (
+    id VARCHAR(64) PRIMARY KEY,
+    enrollment_id VARCHAR(64) REFERENCES enrollments(id) ON DELETE CASCADE,
+    user_id VARCHAR(64) REFERENCES users(id) ON DELETE CASCADE,
+    course_id VARCHAR(64) REFERENCES courses(id) ON DELETE CASCADE,
+    verification_code VARCHAR(128) UNIQUE NOT NULL,
+    issued_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP
+);
+
+CREATE TABLE IF NOT EXISTS reviews (
+    id VARCHAR(64) PRIMARY KEY,
+    course_id VARCHAR(64) REFERENCES courses(id) ON DELETE CASCADE,
+    user_id VARCHAR(64) REFERENCES users(id) ON DELETE CASCADE,
+    rating INT NOT NULL CHECK (rating >= 1 AND rating <= 5),
+    review_text TEXT,
+    created_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP
+);

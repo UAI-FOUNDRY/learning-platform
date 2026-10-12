@@ -18,7 +18,7 @@ class Course(Base):
     updated_at = Column(DateTime(timezone=True), default=datetime.utcnow, onupdate=datetime.utcnow)
 
     # Relationships
-    instructor = relationship("User", back_populates="courses_instructed")
+    instructor = relationship("User", back_populates="courses")
     category = relationship("Category", back_populates="courses")
     sections = relationship("Section", back_populates="course", cascade="all, delete-orphan", order_by="Section.order_index")
     enrollments = relationship("Enrollment", back_populates="course", cascade="all, delete-orphan")

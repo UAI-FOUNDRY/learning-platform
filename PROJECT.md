@@ -90,7 +90,7 @@ Database migrations
       Member 1 + 2                  Member 3 + 4
             |                             |
             |        API Requests         |
-            +------------->--------------+
+            +------------->---------------+
                            |
                         DATABASE
 ```

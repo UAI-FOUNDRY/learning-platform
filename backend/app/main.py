@@ -15,11 +15,17 @@ from app.api.certificates import router as certificates_router
 from app.api.reviews import router as reviews_router
 from app.api.admin import router as admin_router
 
+from app.database.connection import check_database_connection
+from app.middleware.error_handler import register_error_handlers
+
 app = FastAPI(
     title="Learning Platform API",
     description="Modular backend API for the Learning Platform",
     version="0.1.0"
 )
+
+# Register global error handlers
+register_error_handlers(app)
 
 app.add_middleware(
     CORSMiddleware,
@@ -32,7 +38,13 @@ app.add_middleware(
 # Health Check
 @app.get("/api/health", tags=["Health"])
 def health_check():
-    return {"status": "healthy", "service": "learning-platform-api"}
+    db_alive = check_database_connection(timeout_seconds=2.0)
+    return {
+        "status": "healthy",
+        "service": "learning-platform-api",
+        "environment": settings.ENVIRONMENT,
+        "database": "connected" if db_alive else "disconnected"
+    }
 
 # Include Routers
 app.include_router(auth_router, prefix="/api/v1/auth", tags=["Authentication"])

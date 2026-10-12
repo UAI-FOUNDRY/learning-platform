@@ -15,7 +15,7 @@ from app.api.certificates import router as certificates_router
 from app.api.reviews import router as reviews_router
 from app.api.admin import router as admin_router
 
-from app.database.connection import check_database_connection
+from app.database.connection import get_database_status
 from app.middleware.error_handler import register_error_handlers
 
 app = FastAPI(
@@ -38,12 +38,12 @@ app.add_middleware(
 # Health Check
 @app.get("/api/health", tags=["Health"])
 def health_check():
-    db_alive = check_database_connection(timeout_seconds=2.0)
+    db_status = get_database_status(timeout_seconds=2.0)
     return {
-        "status": "healthy",
+        "status": "ok",
         "service": "learning-platform-api",
         "environment": settings.ENVIRONMENT,
-        "database": "connected" if db_alive else "disconnected"
+        "database": db_status
     }
 
 # Include Routers

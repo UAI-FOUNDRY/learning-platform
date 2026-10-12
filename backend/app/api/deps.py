@@ -1,6 +1,7 @@
 from fastapi import Depends, HTTPException, status
 from fastapi.security import OAuth2PasswordBearer
 from sqlalchemy.orm import Session
+from typing import Callable, List
 from app.database.session import get_db
 from app.utils.security import decode_access_token
 from app.services.auth_service import auth_service
@@ -17,7 +18,7 @@ def get_current_user(
 ) -> User:
     """
     Dependency that extracts, verifies the JWT access token, and returns the current User.
-    Raises 401 Unauthorized if missing, expired, or invalid.
+    Raises 401 Unauthorized if missing, expired, invalid, or if user is not found.
     """
     credentials_exception = HTTPException(
         status_code=status.HTTP_401_UNAUTHORIZED,
@@ -40,3 +41,18 @@ def get_current_user(
         raise credentials_exception
 
     return user
+
+def require_role(*allowed_roles: str) -> Callable[..., User]:
+    """
+    Reusable role-based authorization dependency factory.
+    Restricts endpoint access to users possessing one of the specified roles.
+    Raises 403 Forbidden if current user lacks required role.
+    """
+    def role_checker(current_user: User = Depends(get_current_user)) -> User:
+        if current_user.role not in allowed_roles:
+            raise HTTPException(
+                status_code=status.HTTP_403_FORBIDDEN,
+                detail=f"Insufficient permissions for this action. Required role: {', '.join(allowed_roles)}"
+            )
+        return current_user
+    return role_checker

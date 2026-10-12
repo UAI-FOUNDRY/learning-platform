@@ -4,7 +4,7 @@ from typing import Optional
 class Settings(BaseSettings):
     ENVIRONMENT: str = "development"
     PORT: int = 8000
-    DATABASE_URL: str = "postgresql://postgres:postgres@localhost:5432/learning_platform"
+    DATABASE_URL: Optional[str] = "postgresql://postgres:postgres@localhost:5432/learning_platform"
     SECRET_KEY: str = "replace_with_a_secure_random_key_in_production"
     ALGORITHM: str = "HS256"
     ACCESS_TOKEN_EXPIRE_MINUTES: int = 60
@@ -22,6 +22,8 @@ class Settings(BaseSettings):
         Normalize database connection URL.
         Converts legacy 'postgres://' scheme to 'postgresql://' for SQLAlchemy compatibility.
         """
+        if not self.DATABASE_URL:
+            return ""
         url = self.DATABASE_URL
         if url.startswith("postgres://"):
             return url.replace("postgres://", "postgresql://", 1)

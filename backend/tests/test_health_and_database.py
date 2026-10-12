@@ -7,11 +7,11 @@ def test_health_check_endpoint(client):
     response = client.get("/api/health")
     assert response.status_code == 200
     data = response.json()
-    assert data["status"] == "healthy"
+    assert data["status"] == "ok"
     assert data["service"] == "learning-platform-api"
     assert "environment" in data
     assert "database" in data
-    assert data["database"] in ["connected", "disconnected"]
+    assert data["database"] in ["connected", "pending", "not_configured"]
 
 def test_database_session_crud_and_rollback(db_session):
     # Test creation

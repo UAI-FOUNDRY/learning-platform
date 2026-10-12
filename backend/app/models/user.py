@@ -16,7 +16,7 @@ class User(Base):
     updated_at = Column(DateTime(timezone=True), default=datetime.utcnow, onupdate=datetime.utcnow)
 
     # Relationships
-    courses_instructed = relationship("Course", back_populates="instructor")
+    courses = relationship("Course", back_populates="instructor")
     organization_memberships = relationship("OrganizationMember", back_populates="user", cascade="all, delete-orphan")
     enrollments = relationship("Enrollment", back_populates="user", cascade="all, delete-orphan")
     quiz_attempts = relationship("QuizAttempt", back_populates="user", cascade="all, delete-orphan")

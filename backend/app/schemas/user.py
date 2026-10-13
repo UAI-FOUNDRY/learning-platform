@@ -1,5 +1,5 @@
 from pydantic import BaseModel, ConfigDict, field_validator
-from typing import Optional
+from typing import Optional, List
 from datetime import datetime
 from app.utils.validators import is_valid_email
 from app.schemas.common import BaseSchema
@@ -76,3 +76,62 @@ class TokenPayload(BaseSchema):
     exp: Optional[int] = None
     email: Optional[str] = None
     role: Optional[str] = None
+
+class UserProfileUpdate(BaseSchema):
+    full_name: Optional[str] = None
+
+    @field_validator("full_name")
+    @classmethod
+    def validate_full_name(cls, v: Optional[str]) -> Optional[str]:
+        if v is not None:
+            cleaned = v.strip()
+            if not cleaned:
+                raise ValueError("Full name cannot be empty")
+            return cleaned
+        return v
+
+class AdminUserUpdate(BaseSchema):
+    full_name: Optional[str] = None
+    role: Optional[str] = None
+    email: Optional[str] = None
+
+    @field_validator("full_name")
+    @classmethod
+    def validate_full_name(cls, v: Optional[str]) -> Optional[str]:
+        if v is not None:
+            cleaned = v.strip()
+            if not cleaned:
+                raise ValueError("Full name cannot be empty")
+            return cleaned
+        return v
+
+    @field_validator("role")
+    @classmethod
+    def validate_role(cls, v: Optional[str]) -> Optional[str]:
+        if v is not None:
+            cleaned = v.lower().strip()
+            if cleaned not in ["learner", "instructor", "admin", "super_admin"]:
+                raise ValueError("Role must be one of: learner, instructor, admin, super_admin")
+            return cleaned
+        return v
+
+    @field_validator("email")
+    @classmethod
+    def validate_email(cls, v: Optional[str]) -> Optional[str]:
+        if v is not None:
+            if not is_valid_email(v):
+                raise ValueError("Invalid email address format")
+            return v.lower().strip()
+        return v
+
+class UserListResponse(BaseSchema):
+    users: List[UserResponse]
+    total: int
+    page: int
+    limit: int
+    total_pages: int
+
+    @property
+    def items(self) -> List[UserResponse]:
+        return self.users
+

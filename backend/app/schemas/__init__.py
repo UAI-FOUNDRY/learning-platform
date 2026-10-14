@@ -25,6 +25,15 @@ from app.schemas.category import (
     CategoryUpdate,
     CategoryResponse,
 )
+from app.schemas.course import (
+    CourseBase,
+    CourseCreate,
+    CourseUpdate,
+    CourseResponse,
+    CourseListResponse,
+    CourseInstructorSummary,
+    CourseCategorySummary,
+)
 
 __all__ = [
     "BaseSchema",
@@ -48,4 +57,11 @@ __all__ = [
     "CategoryCreate",
     "CategoryUpdate",
     "CategoryResponse",
+    "CourseBase",
+    "CourseCreate",
+    "CourseUpdate",
+    "CourseResponse",
+    "CourseListResponse",
+    "CourseInstructorSummary",
+    "CourseCategorySummary",
 ]

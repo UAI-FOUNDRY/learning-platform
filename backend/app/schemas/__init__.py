@@ -19,6 +19,12 @@ from app.schemas.user import (
     TokenResponse,
     TokenPayload,
 )
+from app.schemas.category import (
+    CategoryBase,
+    CategoryCreate,
+    CategoryUpdate,
+    CategoryResponse,
+)
 
 __all__ = [
     "BaseSchema",
@@ -38,4 +44,8 @@ __all__ = [
     "Token",
     "TokenResponse",
     "TokenPayload",
+    "CategoryBase",
+    "CategoryCreate",
+    "CategoryUpdate",
+    "CategoryResponse",
 ]

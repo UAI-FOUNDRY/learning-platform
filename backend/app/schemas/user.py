@@ -40,8 +40,8 @@ class UserRegister(UserBase):
         if v is None:
             return "learner"
         cleaned_role = v.lower().strip()
-        if cleaned_role in ["admin", "super_admin"]:
-            raise ValueError("Public registration with administrative roles is not permitted")
+        if cleaned_role == "super_admin":
+            raise ValueError("Public registration cannot assign administrative roles")
         if cleaned_role not in ["learner", "instructor"]:
             raise ValueError("Role must be 'learner' or 'instructor'")
         return cleaned_role
@@ -110,8 +110,8 @@ class AdminUserUpdate(BaseSchema):
     def validate_role(cls, v: Optional[str]) -> Optional[str]:
         if v is not None:
             cleaned = v.lower().strip()
-            if cleaned not in ["learner", "instructor", "admin", "super_admin"]:
-                raise ValueError("Role must be one of: learner, instructor, admin, super_admin")
+            if cleaned not in ["learner", "instructor", "super_admin"]:
+                raise ValueError("Role must be one of: learner, instructor, super_admin")
             return cleaned
         return v
 

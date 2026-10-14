@@ -16,7 +16,7 @@ def get_auth_placeholder():
 def register(user_in: UserRegister, db: Session = Depends(get_db)):
     """
     Registers a new user and returns the safe user profile.
-    Rejects privileged roles (e.g. admin, super_admin) to prevent privilege escalation.
+    Rejects privileged roles (e.g. super_admin) to prevent privilege escalation.
     """
     return auth_service.register_user(db, user_in)
 

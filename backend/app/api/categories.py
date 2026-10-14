@@ -19,11 +19,11 @@ router = APIRouter()
 def create_category(
     category_in: CategoryCreate,
     db: Session = Depends(get_db),
-    current_user: User = Depends(require_role("admin", "super_admin")),
+    current_user: User = Depends(require_role("super_admin")),
 ):
     """
     Creates a new category.
-    Restricted to administrators (admin, super_admin).
+    Restricted to Super Admin (super_admin).
     """
     return category_service.create_category(db, category_in)
 
@@ -69,11 +69,11 @@ def update_category(
     category_id: str,
     category_in: CategoryUpdate,
     db: Session = Depends(get_db),
-    current_user: User = Depends(require_role("admin", "super_admin")),
+    current_user: User = Depends(require_role("super_admin")),
 ):
     """
     Updates category details.
-    Restricted to administrators (admin, super_admin).
+    Restricted to Super Admin (super_admin).
     """
     category = category_service.get_by_id(db, category_id)
     if not category:
@@ -88,11 +88,11 @@ def update_category(
 def delete_category(
     category_id: str,
     db: Session = Depends(get_db),
-    current_user: User = Depends(require_role("admin", "super_admin")),
+    current_user: User = Depends(require_role("super_admin")),
 ):
     """
     Deletes a category if not in use by courses.
-    Restricted to administrators (admin, super_admin).
+    Restricted to Super Admin (super_admin).
     """
     category = category_service.get_by_id(db, category_id)
     if not category:

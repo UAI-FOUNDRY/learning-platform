@@ -201,15 +201,15 @@ def test_16_nonexistent_user_token_is_rejected(client, db_session):
 
 # 17. Role dependency correctly allows permitted roles
 def test_17_role_dependency_allows_permitted_roles():
-    admin_user = User(
-        id="adm-1",
-        email="admin@platform.com",
-        full_name="Admin User",
-        role="admin"
+    super_admin_user = User(
+        id="sup-1",
+        email="superadmin@platform.com",
+        full_name="Super Admin User",
+        role="super_admin"
     )
-    checker = require_role("admin", "super_admin")
-    permitted_user = checker(current_user=admin_user)
-    assert permitted_user.id == admin_user.id
+    checker = require_role("super_admin")
+    permitted_user = checker(current_user=super_admin_user)
+    assert permitted_user.id == super_admin_user.id
 
 # 18. Unauthorized roles are rejected
 def test_18_unauthorized_roles_are_rejected():
@@ -219,11 +219,22 @@ def test_18_unauthorized_roles_are_rejected():
         full_name="Learner User",
         role="learner"
     )
-    checker = require_role("admin", "super_admin")
+    admin_user = User(
+        id="adm-legacy-1",
+        email="legacy_admin@platform.com",
+        full_name="Legacy Admin User",
+        role="admin"
+    )
+    checker = require_role("super_admin")
     with pytest.raises(HTTPException) as exc_info:
         checker(current_user=learner_user)
     assert exc_info.value.status_code == 403
     assert "Insufficient permissions" in exc_info.value.detail
+
+    with pytest.raises(HTTPException) as exc_info_admin:
+        checker(current_user=admin_user)
+    assert exc_info_admin.value.status_code == 403
+    assert "Insufficient permissions" in exc_info_admin.value.detail
 
 # 19. Public registration cannot create Super Admin
 def test_19_public_registration_cannot_create_super_admin(client, db_session):
@@ -248,3 +259,17 @@ def test_19_public_registration_cannot_create_super_admin(client, db_session):
     # Verify no admin user was created
     assert db_session.query(User).filter(User.email == "hacker@example.com").first() is None
     assert db_session.query(User).filter(User.email == "hacker2@example.com").first() is None
+
+# 20. Public registration allows instructor role
+def test_20_public_registration_allows_instructor(client, db_session):
+    payload_instructor = {
+        "email": "professor_reg@example.com",
+        "password": "Password123",
+        "full_name": "Professor Register",
+        "role": "instructor",
+    }
+    res_inst = client.post("/api/v1/auth/register", json=payload_instructor)
+    assert res_inst.status_code == 201
+    data = res_inst.json()
+    assert data["role"] == "instructor"
+    assert data["email"] == "professor_reg@example.com"

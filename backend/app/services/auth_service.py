@@ -26,10 +26,15 @@ class AuthService:
             )
 
         clean_role = (user_in.role or "learner").lower().strip()
-        if clean_role in ["admin", "super_admin"]:
+        if clean_role == "super_admin":
             raise HTTPException(
                 status_code=status.HTTP_403_FORBIDDEN,
                 detail="Public registration cannot assign administrative roles"
+            )
+        if clean_role not in ["learner", "instructor"]:
+            raise HTTPException(
+                status_code=status.HTTP_400_BAD_REQUEST,
+                detail=f"Invalid role '{clean_role}'. Valid roles are: learner, instructor"
             )
 
         hashed_password = get_password_hash(user_in.password)

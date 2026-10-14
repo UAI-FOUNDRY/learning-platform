@@ -33,13 +33,13 @@ def create_category(db, name, slug, description=None):
 # ==========================================
 
 def test_admin_can_create_category(client, db_session):
-    admin = create_user(db_session, "cat_admin@platform.com", role="admin")
+    super_admin = create_user(db_session, "cat_admin@platform.com", role="super_admin")
     payload = {
         "name": "Cloud Computing",
         "slug": "cloud-computing",
         "description": "Courses covering AWS, GCP, and Azure technologies"
     }
-    response = client.post("/api/v1/categories", headers=auth_header(admin), json=payload)
+    response = client.post("/api/v1/categories", headers=auth_header(super_admin), json=payload)
     assert response.status_code == 201
     data = response.json()
     assert data["name"] == "Cloud Computing"
@@ -86,38 +86,38 @@ def test_unauthenticated_user_cannot_create_category(client):
     assert response.status_code == 401
 
 def test_duplicate_name_rejected(client, db_session):
-    admin = create_user(db_session, "dup_name_admin@platform.com", role="admin")
+    super_admin = create_user(db_session, "dup_name_admin@platform.com", role="super_admin")
     create_category(db_session, name="Cybersecurity", slug="cybersecurity-1")
 
     # Try creating with same name (even with different slug)
     payload = {"name": "Cybersecurity", "slug": "cybersecurity-2"}
-    response = client.post("/api/v1/categories", headers=auth_header(admin), json=payload)
+    response = client.post("/api/v1/categories", headers=auth_header(super_admin), json=payload)
     assert response.status_code == 409
     assert "already exists" in response.json()["detail"].lower()
 
 def test_duplicate_slug_rejected(client, db_session):
-    admin = create_user(db_session, "dup_slug_admin@platform.com", role="admin")
+    super_admin = create_user(db_session, "dup_slug_admin@platform.com", role="super_admin")
     create_category(db_session, name="Data Science", slug="data-science")
 
     # Try creating with different name but identical slug
     payload = {"name": "Applied Data Science", "slug": "data-science"}
-    response = client.post("/api/v1/categories", headers=auth_header(admin), json=payload)
+    response = client.post("/api/v1/categories", headers=auth_header(super_admin), json=payload)
     assert response.status_code == 409
     assert "already exists" in response.json()["detail"].lower()
 
 def test_invalid_input_rejected(client, db_session):
-    admin = create_user(db_session, "invalid_admin@platform.com", role="admin")
+    super_admin = create_user(db_session, "invalid_admin@platform.com", role="super_admin")
 
     # Empty name
-    res1 = client.post("/api/v1/categories", headers=auth_header(admin), json={"name": "   ", "slug": "valid-slug"})
+    res1 = client.post("/api/v1/categories", headers=auth_header(super_admin), json={"name": "   ", "slug": "valid-slug"})
     assert res1.status_code in [400, 422]
 
     # Empty slug
-    res2 = client.post("/api/v1/categories", headers=auth_header(admin), json={"name": "Valid Name", "slug": "   "})
+    res2 = client.post("/api/v1/categories", headers=auth_header(super_admin), json={"name": "Valid Name", "slug": "   "})
     assert res2.status_code in [400, 422]
 
     # Invalid slug characters (spaces, special characters)
-    res3 = client.post("/api/v1/categories", headers=auth_header(admin), json={"name": "Valid Name", "slug": "invalid slug @!"})
+    res3 = client.post("/api/v1/categories", headers=auth_header(super_admin), json={"name": "Valid Name", "slug": "invalid slug @!"})
     assert res3.status_code in [400, 422]
 
 # ==========================================
@@ -165,7 +165,7 @@ def test_nonexistent_category_returns_404(client, db_session):
 # ==========================================
 
 def test_admin_can_update_category(client, db_session):
-    admin = create_user(db_session, "update_admin@platform.com", role="admin")
+    super_admin = create_user(db_session, "update_admin@platform.com", role="super_admin")
     cat = create_category(db_session, name="Old Name", slug="old-slug", description="Old description")
 
     update_payload = {
@@ -173,7 +173,7 @@ def test_admin_can_update_category(client, db_session):
         "slug": "new-category-slug",
         "description": "Updated description text"
     }
-    response = client.put(f"/api/v1/categories/{cat.id}", headers=auth_header(admin), json=update_payload)
+    response = client.put(f"/api/v1/categories/{cat.id}", headers=auth_header(super_admin), json=update_payload)
     assert response.status_code == 200
     data = response.json()
     assert data["name"] == "New Category Name"
@@ -220,38 +220,38 @@ def test_instructor_cannot_update_category(client, db_session):
     assert response.status_code == 403
 
 def test_update_duplicate_name_rejected(client, db_session):
-    admin = create_user(db_session, "dup_name_upd_admin@platform.com", role="admin")
+    super_admin = create_user(db_session, "dup_name_upd_admin@platform.com", role="super_admin")
     create_category(db_session, name="Frontend", slug="frontend")
     cat2 = create_category(db_session, name="Backend", slug="backend")
 
     # Try renaming Backend -> Frontend
     response = client.put(
         f"/api/v1/categories/{cat2.id}",
-        headers=auth_header(admin),
+        headers=auth_header(super_admin),
         json={"name": "Frontend"}
     )
     assert response.status_code == 409
     assert "already exists" in response.json()["detail"].lower()
 
 def test_update_duplicate_slug_rejected(client, db_session):
-    admin = create_user(db_session, "dup_slug_upd_admin@platform.com", role="admin")
+    super_admin = create_user(db_session, "dup_slug_upd_admin@platform.com", role="super_admin")
     create_category(db_session, name="Database Systems", slug="database-systems")
     cat2 = create_category(db_session, name="NoSQL Databases", slug="nosql-databases")
 
     # Try changing slug to existing one
     response = client.put(
         f"/api/v1/categories/{cat2.id}",
-        headers=auth_header(admin),
+        headers=auth_header(super_admin),
         json={"slug": "database-systems"}
     )
     assert response.status_code == 409
     assert "already exists" in response.json()["detail"].lower()
 
 def test_update_nonexistent_category_returns_404(client, db_session):
-    admin = create_user(db_session, "upd_404_admin@platform.com", role="admin")
+    super_admin = create_user(db_session, "upd_404_admin@platform.com", role="super_admin")
     response = client.put(
         "/api/v1/categories/nonexistent-cat-uuid-1234",
-        headers=auth_header(admin),
+        headers=auth_header(super_admin),
         json={"name": "Does Not Matter"}
     )
     assert response.status_code == 404
@@ -262,10 +262,10 @@ def test_update_nonexistent_category_returns_404(client, db_session):
 # ==========================================
 
 def test_admin_can_delete_unused_category(client, db_session):
-    admin = create_user(db_session, "del_admin@platform.com", role="admin")
+    super_admin = create_user(db_session, "del_admin@platform.com", role="super_admin")
     cat = create_category(db_session, name="To Delete", slug="to-delete")
 
-    response = client.delete(f"/api/v1/categories/{cat.id}", headers=auth_header(admin))
+    response = client.delete(f"/api/v1/categories/{cat.id}", headers=auth_header(super_admin))
     assert response.status_code == 200
     assert "deleted successfully" in response.json()["message"].lower()
 
@@ -302,13 +302,13 @@ def test_instructor_cannot_delete_category(client, db_session):
     assert db_session.query(Category).filter(Category.id == cat.id).first() is not None
 
 def test_delete_nonexistent_category_returns_404(client, db_session):
-    admin = create_user(db_session, "del_404_admin@platform.com", role="admin")
-    response = client.delete("/api/v1/categories/nonexistent-id-5678", headers=auth_header(admin))
+    super_admin = create_user(db_session, "del_404_admin@platform.com", role="super_admin")
+    response = client.delete("/api/v1/categories/nonexistent-id-5678", headers=auth_header(super_admin))
     assert response.status_code == 404
     assert "not found" in response.json()["detail"].lower()
 
 def test_category_referenced_by_courses_cannot_be_deleted(client, db_session):
-    admin = create_user(db_session, "course_fk_admin@platform.com", role="admin")
+    super_admin = create_user(db_session, "course_fk_admin@platform.com", role="super_admin")
     instructor = create_user(db_session, "course_instructor@platform.com", role="instructor")
     cat = create_category(db_session, name="Course Bound Category", slug="course-bound-category")
 
@@ -324,7 +324,7 @@ def test_category_referenced_by_courses_cannot_be_deleted(client, db_session):
     db_session.refresh(course)
 
     # Attempt deletion of category that is referenced by a course
-    response = client.delete(f"/api/v1/categories/{cat.id}", headers=auth_header(admin))
+    response = client.delete(f"/api/v1/categories/{cat.id}", headers=auth_header(super_admin))
     assert response.status_code == 409
     data = response.json()
     assert "cannot delete category" in data["detail"].lower()
@@ -337,7 +337,7 @@ def test_category_referenced_by_courses_cannot_be_deleted(client, db_session):
     course.category_id = None
     db_session.commit()
 
-    del_response = client.delete(f"/api/v1/categories/{cat.id}", headers=auth_header(admin))
+    del_response = client.delete(f"/api/v1/categories/{cat.id}", headers=auth_header(super_admin))
     assert del_response.status_code == 200
     assert db_session.query(Category).filter(Category.id == cat.id).first() is None
 
@@ -354,3 +354,37 @@ def test_categories_pagination_support(client, db_session):
     assert response.status_code == 200
     data = response.json()
     assert len(data) == 2
+
+# ==========================================
+# EXPLICIT LEGACY ADMIN REJECTION TESTS
+# ==========================================
+
+def test_legacy_admin_cannot_create_update_or_delete_categories(client, db_session):
+    legacy_admin = create_user(db_session, "legacy_cat_admin@platform.com", role="admin")
+    cat = create_category(db_session, name="Cat Untouchable", slug="cat-untouchable", description="Original")
+
+    # 1. Attempt POST /api/v1/categories
+    post_payload = {"name": "Legacy Admin Cat", "slug": "legacy-admin-cat"}
+    res_post = client.post("/api/v1/categories", headers=auth_header(legacy_admin), json=post_payload)
+    assert res_post.status_code == 403
+    assert "insufficient permissions" in res_post.json()["detail"].lower()
+
+    # 2. Attempt PUT /api/v1/categories/{cat_id}
+    res_put = client.put(
+        f"/api/v1/categories/{cat.id}",
+        headers=auth_header(legacy_admin),
+        json={"name": "Hacked Cat"}
+    )
+    assert res_put.status_code == 403
+    assert "insufficient permissions" in res_put.json()["detail"].lower()
+
+    # 3. Attempt DELETE /api/v1/categories/{cat_id}
+    res_del = client.delete(f"/api/v1/categories/{cat.id}", headers=auth_header(legacy_admin))
+    assert res_del.status_code == 403
+    assert "insufficient permissions" in res_del.json()["detail"].lower()
+
+    # Verify category in DB was untouched
+    refreshed = db_session.query(Category).filter(Category.id == cat.id).first()
+    assert refreshed is not None
+    assert refreshed.name == "Cat Untouchable"
+    assert refreshed.description == "Original"

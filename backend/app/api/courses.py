@@ -9,7 +9,9 @@ from app.schemas.course import (
     CourseResponse,
 )
 from app.schemas.common import MessageResponse
+from app.schemas.enrollment import EnrollmentResponse, EnrollmentWithUserResponse
 from app.services.course_service import course_service
+from app.services.enrollment_service import enrollment_service
 from app.api.deps import get_current_user, require_role
 
 router = APIRouter()
@@ -54,6 +56,7 @@ def list_courses(
         instructor_id=instructor_id,
         status_filter=status,
         search=search,
+        current_user=current_user,
     )
 
 
@@ -96,3 +99,52 @@ def delete_course(
     """
     course_service.delete_course(db, course_id, current_user)
     return MessageResponse(message="Course deleted successfully")
+
+
+@router.post("/{course_id}/submit", response_model=CourseResponse)
+def submit_course(
+    course_id: str,
+    db: Session = Depends(get_db),
+    current_user: User = Depends(require_role("super_admin", "instructor")),
+):
+    """
+    Submits a draft or changes_requested course for Super Admin review.
+    Accessible to Super Admin and course owner Instructor.
+    """
+    return course_service.submit_course_for_approval(db, course_id, current_user)
+
+
+@router.post("/{course_id}/enroll", response_model=EnrollmentResponse, status_code=status.HTTP_201_CREATED)
+def enroll_in_course(
+    course_id: str,
+    db: Session = Depends(get_db),
+    current_user: User = Depends(require_role("learner")),
+):
+    """
+    Enrolls the authenticated learner in a published course.
+    Accessible only to learners.
+    """
+    return enrollment_service.enroll_in_course(db, course_id, current_user)
+
+
+@router.get("/{course_id}/enrollments", response_model=List[EnrollmentWithUserResponse])
+def get_course_enrollments(
+    course_id: str,
+    page: Optional[int] = Query(None, ge=1, description="Page number (1-indexed)"),
+    limit: int = Query(50, ge=1, le=100, description="Items per page"),
+    skip: int = Query(0, ge=0, description="Records to skip"),
+    db: Session = Depends(get_db),
+    current_user: User = Depends(require_role("super_admin", "instructor")),
+):
+    """
+    Retrieves the enrollment roster for a specific course.
+    Accessible to Super Admin and the course instructor owner.
+    """
+    offset = (page - 1) * limit if page is not None else skip
+    return enrollment_service.get_course_enrollments(
+        db=db,
+        course_id=course_id,
+        current_user=current_user,
+        skip=offset,
+        limit=limit,
+    )

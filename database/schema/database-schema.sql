@@ -46,6 +46,10 @@ CREATE TABLE IF NOT EXISTS courses (
     instructor_id VARCHAR(64) REFERENCES users(id) ON DELETE SET NULL,
     category_id VARCHAR(64) REFERENCES categories(id) ON DELETE SET NULL,
     status VARCHAR(32) NOT NULL DEFAULT 'DRAFT',
+    reviewer_id VARCHAR(64) REFERENCES users(id) ON DELETE SET NULL,
+    review_feedback TEXT,
+    submitted_at TIMESTAMP WITH TIME ZONE,
+    reviewed_at TIMESTAMP WITH TIME ZONE,
     created_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP,
     updated_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP
 );
@@ -74,7 +78,8 @@ CREATE TABLE IF NOT EXISTS enrollments (
     course_id VARCHAR(64) REFERENCES courses(id) ON DELETE CASCADE,
     status VARCHAR(32) NOT NULL DEFAULT 'ACTIVE',
     enrolled_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP,
-    completed_at TIMESTAMP WITH TIME ZONE
+    completed_at TIMESTAMP WITH TIME ZONE,
+    CONSTRAINT uq_user_course_enrollment UNIQUE (user_id, course_id)
 );
 
 CREATE TABLE IF NOT EXISTS progress (

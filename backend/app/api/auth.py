@@ -8,7 +8,7 @@ from app.models.user import User
 
 router = APIRouter()
 
-@router.get("/")
+@router.get("/", include_in_schema=False)
 def get_auth_placeholder():
     return {"module": "auth", "description": "Authentication endpoints"}
 

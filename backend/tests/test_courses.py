@@ -126,7 +126,7 @@ def test_6_course_can_be_retrieved(client, db_session):
         description="Comprehensive deep learning walkthrough",
         category_id=cat.id,
         instructor_id=instructor.id,
-        status="draft",
+        status="published",
     )
     db_session.add(course)
     db_session.commit()
@@ -149,8 +149,8 @@ def test_7_course_listing_works(client, db_session):
     cat = create_category(db_session, name="Databases", slug="db-course-7")
     inst = create_user(db_session, "inst_lister_c@platform.com", role="instructor")
 
-    c1 = Course(title="PostgreSQL in Depth", category_id=cat.id, instructor_id=inst.id, status="draft")
-    c2 = Course(title="Redis Essentials", category_id=cat.id, instructor_id=inst.id, status="draft")
+    c1 = Course(title="PostgreSQL in Depth", category_id=cat.id, instructor_id=inst.id, status="published")
+    c2 = Course(title="Redis Essentials", category_id=cat.id, instructor_id=inst.id, status="published")
     db_session.add_all([c1, c2])
     db_session.commit()
 

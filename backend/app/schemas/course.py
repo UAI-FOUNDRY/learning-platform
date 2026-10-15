@@ -109,6 +109,41 @@ class CourseUpdate(BaseSchema):
             return cleaned
         return v
 
+class CourseStatus:
+    DRAFT = "draft"
+    PENDING_REVIEW = "pending_review"
+    PUBLISHED = "published"
+    CHANGES_REQUESTED = "changes_requested"
+    REJECTED = "rejected"
+
+    ALL_STATUSES = {DRAFT, PENDING_REVIEW, PUBLISHED, CHANGES_REQUESTED, REJECTED}
+
+class CourseReviewRequest(BaseSchema):
+    feedback: str
+
+    @field_validator("feedback")
+    @classmethod
+    def validate_feedback(cls, v: str) -> str:
+        cleaned = v.strip()
+        if not cleaned:
+            raise ValueError("Feedback cannot be empty")
+        if len(cleaned) > 2000:
+            raise ValueError("Feedback cannot exceed 2000 characters")
+        return cleaned
+
+class CourseRejectRequest(BaseSchema):
+    reason: str
+
+    @field_validator("reason")
+    @classmethod
+    def validate_reason(cls, v: str) -> str:
+        cleaned = v.strip()
+        if not cleaned:
+            raise ValueError("Reason cannot be empty")
+        if len(cleaned) > 2000:
+            raise ValueError("Reason cannot exceed 2000 characters")
+        return cleaned
+
 class CourseResponse(BaseSchema):
     id: str
     title: str
@@ -117,9 +152,14 @@ class CourseResponse(BaseSchema):
     instructor_id: Optional[str] = None
     category_id: Optional[str] = None
     status: str = "draft"
+    reviewer_id: Optional[str] = None
+    review_feedback: Optional[str] = None
+    submitted_at: Optional[datetime] = None
+    reviewed_at: Optional[datetime] = None
     created_at: Optional[datetime] = None
     updated_at: Optional[datetime] = None
     instructor: Optional[CourseInstructorSummary] = None
+    reviewer: Optional[CourseInstructorSummary] = None
     category: Optional[CourseCategorySummary] = None
 
     @field_validator("status", mode="before")

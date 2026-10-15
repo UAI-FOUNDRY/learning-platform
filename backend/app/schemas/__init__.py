@@ -34,6 +34,18 @@ from app.schemas.course import (
     CourseInstructorSummary,
     CourseCategorySummary,
 )
+from app.schemas.section import (
+    SectionBase,
+    SectionCreate,
+    SectionUpdate,
+    SectionResponse,
+)
+from app.schemas.lecture import (
+    LectureBase,
+    LectureCreate,
+    LectureUpdate,
+    LectureResponse,
+)
 
 __all__ = [
     "BaseSchema",
@@ -64,4 +76,12 @@ __all__ = [
     "CourseListResponse",
     "CourseInstructorSummary",
     "CourseCategorySummary",
+    "SectionBase",
+    "SectionCreate",
+    "SectionUpdate",
+    "SectionResponse",
+    "LectureBase",
+    "LectureCreate",
+    "LectureUpdate",
+    "LectureResponse",
 ]

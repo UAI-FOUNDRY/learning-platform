@@ -33,6 +33,9 @@ from app.schemas.course import (
     CourseListResponse,
     CourseInstructorSummary,
     CourseCategorySummary,
+    CourseStatus,
+    CourseReviewRequest,
+    CourseRejectRequest,
 )
 from app.schemas.section import (
     SectionBase,
@@ -45,6 +48,13 @@ from app.schemas.lecture import (
     LectureCreate,
     LectureUpdate,
     LectureResponse,
+)
+from app.schemas.enrollment import (
+    EnrollmentBase,
+    EnrollmentCreate,
+    EnrollmentResponse,
+    EnrollmentWithCourseResponse,
+    EnrollmentWithUserResponse,
 )
 
 __all__ = [
@@ -76,6 +86,9 @@ __all__ = [
     "CourseListResponse",
     "CourseInstructorSummary",
     "CourseCategorySummary",
+    "CourseStatus",
+    "CourseReviewRequest",
+    "CourseRejectRequest",
     "SectionBase",
     "SectionCreate",
     "SectionUpdate",
@@ -84,4 +97,9 @@ __all__ = [
     "LectureCreate",
     "LectureUpdate",
     "LectureResponse",
+    "EnrollmentBase",
+    "EnrollmentCreate",
+    "EnrollmentResponse",
+    "EnrollmentWithCourseResponse",
+    "EnrollmentWithUserResponse",
 ]

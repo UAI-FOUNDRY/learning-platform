@@ -77,6 +77,11 @@ class LectureService:
                     status_code=status.HTTP_403_FORBIDDEN,
                     detail="Instructors can only create lectures in their own courses"
                 )
+            if course.status.lower() == "pending_review":
+                raise HTTPException(
+                    status_code=status.HTTP_409_CONFLICT,
+                    detail="Cannot modify lectures while course is pending review"
+                )
         elif current_user.role != "super_admin":
             raise HTTPException(
                 status_code=status.HTTP_403_FORBIDDEN,
@@ -136,6 +141,11 @@ class LectureService:
                     status_code=status.HTTP_403_FORBIDDEN,
                     detail="Instructors can only update lectures in their own courses"
                 )
+            if course and course.status.lower() == "pending_review":
+                raise HTTPException(
+                    status_code=status.HTTP_409_CONFLICT,
+                    detail="Cannot modify lectures while course is pending review"
+                )
         elif current_user.role != "super_admin":
             raise HTTPException(
                 status_code=status.HTTP_403_FORBIDDEN,
@@ -185,6 +195,11 @@ class LectureService:
                 raise HTTPException(
                     status_code=status.HTTP_403_FORBIDDEN,
                     detail="Instructors can only delete lectures in their own courses"
+                )
+            if course and course.status.lower() == "pending_review":
+                raise HTTPException(
+                    status_code=status.HTTP_409_CONFLICT,
+                    detail="Cannot modify lectures while course is pending review"
                 )
         elif current_user.role != "super_admin":
             raise HTTPException(

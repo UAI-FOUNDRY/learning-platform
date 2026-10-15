@@ -74,6 +74,11 @@ class SectionService:
                     status_code=status.HTTP_403_FORBIDDEN,
                     detail="Instructors can only create sections in their own courses"
                 )
+            if course.status.lower() == "pending_review":
+                raise HTTPException(
+                    status_code=status.HTTP_409_CONFLICT,
+                    detail="Cannot modify sections while course is pending review"
+                )
         elif current_user.role != "super_admin":
             raise HTTPException(
                 status_code=status.HTTP_403_FORBIDDEN,
@@ -130,6 +135,11 @@ class SectionService:
                     status_code=status.HTTP_403_FORBIDDEN,
                     detail="Instructors can only update sections in their own courses"
                 )
+            if course and course.status.lower() == "pending_review":
+                raise HTTPException(
+                    status_code=status.HTTP_409_CONFLICT,
+                    detail="Cannot modify sections while course is pending review"
+                )
         elif current_user.role != "super_admin":
             raise HTTPException(
                 status_code=status.HTTP_403_FORBIDDEN,
@@ -172,6 +182,11 @@ class SectionService:
                 raise HTTPException(
                     status_code=status.HTTP_403_FORBIDDEN,
                     detail="Instructors can only delete sections in their own courses"
+                )
+            if course and course.status.lower() == "pending_review":
+                raise HTTPException(
+                    status_code=status.HTTP_409_CONFLICT,
+                    detail="Cannot modify sections while course is pending review"
                 )
         elif current_user.role != "super_admin":
             raise HTTPException(

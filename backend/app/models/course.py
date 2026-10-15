@@ -14,11 +14,16 @@ class Course(Base):
     instructor_id = Column(String(64), ForeignKey("users.id", ondelete="SET NULL"), nullable=True, index=True)
     category_id = Column(String(64), ForeignKey("categories.id", ondelete="SET NULL"), nullable=True, index=True)
     status = Column(String(32), nullable=False, default="DRAFT")
+    reviewer_id = Column(String(64), ForeignKey("users.id", ondelete="SET NULL"), nullable=True, index=True)
+    review_feedback = Column(Text, nullable=True)
+    submitted_at = Column(DateTime(timezone=True), nullable=True)
+    reviewed_at = Column(DateTime(timezone=True), nullable=True)
     created_at = Column(DateTime(timezone=True), default=datetime.utcnow)
     updated_at = Column(DateTime(timezone=True), default=datetime.utcnow, onupdate=datetime.utcnow)
 
     # Relationships
-    instructor = relationship("User", back_populates="courses")
+    instructor = relationship("User", foreign_keys=[instructor_id], back_populates="courses")
+    reviewer = relationship("User", foreign_keys=[reviewer_id])
     category = relationship("Category", back_populates="courses")
     sections = relationship("Section", back_populates="course", cascade="all, delete-orphan", order_by="Section.order_index")
     enrollments = relationship("Enrollment", back_populates="course", cascade="all, delete-orphan")

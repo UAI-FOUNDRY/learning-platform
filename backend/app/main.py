@@ -9,8 +9,8 @@ from app.api.courses import router as courses_router
 from app.api.categories import router as categories_router
 from app.api.enrollments import router as enrollments_router
 from app.api.progress import router as progress_router
-from app.api.quizzes import router as quizzes_router
-from app.api.assignments import router as assignments_router
+from app.api.quizzes import router as quizzes_router, section_quizzes_router
+from app.api.assignments import router as assignments_router, section_assignments_router
 from app.api.certificates import router as certificates_router
 from app.api.reviews import router as reviews_router
 from app.api.admin import router as admin_router
@@ -59,7 +59,9 @@ app.include_router(categories_router, prefix="/api/v1/categories", tags=["Catego
 app.include_router(enrollments_router, prefix="/api/v1/enrollments", tags=["Enrollments"])
 app.include_router(progress_router, prefix="/api/v1/progress", tags=["Progress"])
 app.include_router(quizzes_router, prefix="/api/v1/quizzes", tags=["Quizzes"])
+app.include_router(section_quizzes_router, prefix="/api/v1", tags=["Quizzes"])
 app.include_router(assignments_router, prefix="/api/v1/assignments", tags=["Assignments"])
+app.include_router(section_assignments_router, prefix="/api/v1", tags=["Assignments"])
 app.include_router(certificates_router, prefix="/api/v1/certificates", tags=["Certificates"])
 app.include_router(reviews_router, prefix="/api/v1/reviews", tags=["Reviews"])
 app.include_router(admin_router, prefix="/api/v1/admin", tags=["Admin"])

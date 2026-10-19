@@ -1,3 +1,5 @@
+import logging
+
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 from app.config.settings import settings
@@ -9,11 +11,33 @@ from app.api.courses import router as courses_router
 from app.api.categories import router as categories_router
 from app.api.enrollments import router as enrollments_router
 from app.api.progress import router as progress_router
-from app.api.quizzes import router as quizzes_router
-from app.api.assignments import router as assignments_router
+from app.api.quizzes import router as quizzes_router, section_quizzes_router
+from app.api.assignments import router as assignments_router, section_assignments_router
 from app.api.certificates import router as certificates_router
 from app.api.reviews import router as reviews_router
 from app.api.admin import router as admin_router
+from app.api.settings import router as settings_router
+from app.api.qa import router as qa_router
+from app.api.reports import router as reports_router
+from app.api.learning import router as learning_router
+from app.api.gamification import router as gamification_router
+from app.api.coding import router as coding_router
+from app.api.ai import router as ai_router
+from app.api.personalization import router as personalization_router, recommendations_router
+from app.api.uploads import router as uploads_router, media_router, files_router
+from app.api.analytics import router as analytics_router
+from app.api.notifications import router as notifications_router, announcements_router
+from app.api.sections import router as sections_router
+from app.api.lectures import router as lectures_router
+
+from app.database.connection import get_database_status
+from app.middleware.error_handler import register_error_handlers
+
+settings.assert_safe()  # production/staging: stop here if SECRET_KEY / CORS are still development defaults
+if settings.SECRET_KEY == settings.PLACEHOLDER_SECRET:
+    logging.getLogger(__name__).warning(
+        "SECRET_KEY is the built-in placeholder. Fine for local development, never for a real server."
+    )
 
 app = FastAPI(
     title="Learning Platform API",
@@ -21,10 +45,13 @@ app = FastAPI(
     version="0.1.0"
 )
 
+# Register global error handlers
+register_error_handlers(app)
+
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=["*"],
-    allow_credentials=True,
+    allow_origins=settings.cors_origins_list,
+    allow_credentials="*" not in settings.cors_origins_list,  # browsers reject "*" together with credentials
     allow_methods=["*"],
     allow_headers=["*"],
 )
@@ -32,18 +59,43 @@ app.add_middleware(
 # Health Check
 @app.get("/api/health", tags=["Health"])
 def health_check():
-    return {"status": "healthy", "service": "learning-platform-api"}
+    db_status = get_database_status(timeout_seconds=2.0)
+    return {
+        "status": "ok",
+        "service": "learning-platform-api",
+        "environment": settings.ENVIRONMENT,
+        "database": db_status
+    }
 
 # Include Routers
 app.include_router(auth_router, prefix="/api/v1/auth", tags=["Authentication"])
 app.include_router(users_router, prefix="/api/v1/users", tags=["Users"])
 app.include_router(organizations_router, prefix="/api/v1/organizations", tags=["Organizations"])
 app.include_router(courses_router, prefix="/api/v1/courses", tags=["Courses"])
+app.include_router(sections_router, prefix="/api/v1", tags=["Sections"])
+app.include_router(lectures_router, prefix="/api/v1", tags=["Lectures"])
 app.include_router(categories_router, prefix="/api/v1/categories", tags=["Categories"])
 app.include_router(enrollments_router, prefix="/api/v1/enrollments", tags=["Enrollments"])
 app.include_router(progress_router, prefix="/api/v1/progress", tags=["Progress"])
 app.include_router(quizzes_router, prefix="/api/v1/quizzes", tags=["Quizzes"])
+app.include_router(section_quizzes_router, prefix="/api/v1", tags=["Quizzes"])
 app.include_router(assignments_router, prefix="/api/v1/assignments", tags=["Assignments"])
+app.include_router(section_assignments_router, prefix="/api/v1", tags=["Assignments"])
 app.include_router(certificates_router, prefix="/api/v1/certificates", tags=["Certificates"])
 app.include_router(reviews_router, prefix="/api/v1/reviews", tags=["Reviews"])
+app.include_router(settings_router, prefix="/api/v1/settings", tags=["Settings"])
+app.include_router(notifications_router, prefix="/api/v1/notifications", tags=["Notifications"])
+app.include_router(announcements_router, prefix="/api/v1/announcements", tags=["Announcements"])
+app.include_router(analytics_router, prefix="/api/v1/analytics", tags=["Analytics"])
+app.include_router(qa_router, prefix="/api/v1/qa", tags=["Q&A"])
+app.include_router(reports_router, prefix="/api/v1/reports", tags=["Reports"])
+app.include_router(learning_router, prefix="/api/v1/learning", tags=["Learner tools"])
+app.include_router(gamification_router, prefix="/api/v1/gamification", tags=["Gamification"])
+app.include_router(coding_router, prefix="/api/v1/coding", tags=["Coding"])
+app.include_router(ai_router, prefix="/api/v1/ai", tags=["AI tutor"])
+app.include_router(personalization_router, prefix="/api/v1/personalization", tags=["Personalization"])
+app.include_router(recommendations_router, prefix="/api/v1/recommendations", tags=["Recommendations"])
+app.include_router(uploads_router, prefix="/api/v1/uploads", tags=["Uploads"])
+app.include_router(media_router, prefix="/api/v1", tags=["Lecture media"])
+app.include_router(files_router, prefix="/api/v1/files", tags=["Files"])
 app.include_router(admin_router, prefix="/api/v1/admin", tags=["Admin"])

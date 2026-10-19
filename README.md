@@ -43,10 +43,36 @@ foundryT-2/
    ```bash
    cp .env.example .env
    ```
-5. Run the development server:
+5. Configure database and environment variables in `.env`:
+   - `DATABASE_URL`: Your Supabase PostgreSQL connection string.
+     - Direct / Session Pooler (port 5432):
+       `postgresql://postgres.[project-ref]:[db-password]@aws-0-[region].pooler.supabase.com:5432/postgres`
+     - Transaction Pooler (port 6543):
+       `postgresql://postgres.[project-ref]:[db-password]@aws-0-[region].pooler.supabase.com:6543/postgres`
+     - Local PostgreSQL:
+       `postgresql://postgres:postgres@localhost:5432/learning_platform`
+   - `SECRET_KEY`: Random secret string for JWT signature generation.
+   - `ACCESS_TOKEN_EXPIRE_MINUTES`: JWT token lifetime in minutes (default: 60).
+   - Connection pool settings: `DB_POOL_SIZE` (default: 5), `DB_MAX_OVERFLOW` (default: 10), `DB_POOL_RECYCLE` (default: 1800).
+6. Create or upgrade the database schema with Alembic, load categories, and create the first Super Admin
+   (full guide, including Supabase connection tips: `database/README.md`):
    ```bash
-   uvicorn app.main:app --reload
+   alembic upgrade head
+   psql "$DATABASE_URL" -f ../database/seeds/categories.sql
+   python -m scripts.create_super_admin --email you@example.com --name "Your Name"
    ```
+7. Run tests:
+   ```bash
+   pytest
+   ```
+8. Run the development server:
+   ```bash
+   uvicorn app.main:app --reload --port 8000
+   ```
+9. Access the API & Docs:
+   - Health check: `http://localhost:8000/api/health`
+   - Swagger OpenAPI docs: `http://localhost:8000/docs`
+   - ReDoc: `http://localhost:8000/redoc`
 
 ### Frontend Setup
 1. Navigate to the `frontend/` directory:
@@ -69,3 +95,5 @@ foundryT-2/
 ## Development & Git Workflow
 - Development occurs on feature branches branched from `development`.
 - Refer to `docs/team-contribution.md` and `docs/development-guidelines.md` for team coordination details.
+
+this is a test

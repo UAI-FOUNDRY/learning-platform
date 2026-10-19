@@ -1,0 +1,260 @@
+from typing import Optional, List
+from sqlalchemy.orm import Session
+from sqlalchemy import func
+from fastapi import HTTPException, status
+from app.services import course_policy
+from app.models.lecture import Lecture
+from app.models.section import Section
+from app.models.course import Course
+from app.models.progress import Progress
+from app.models.user import User
+from app.schemas.lecture import LectureCreate, LectureUpdate, LectureResponse
+
+class LectureService:
+    def get_by_id(self, db: Session, lecture_id: str) -> Optional[Lecture]:
+        if not lecture_id:
+            return None
+        return db.query(Lecture).filter(Lecture.id == lecture_id).first()
+
+    def _course_of(self, db: Session, section: Section) -> Course:
+        course = db.query(Course).filter(Course.id == section.course_id).first()
+        if not course:
+            raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Parent course not found")
+        return course
+
+    def _to_response(self, db: Session, course: Course, lecture: Lecture, user: User) -> LectureResponse:
+        """Never hand out the video/file URL of a lecture the caller may not watch."""
+        data = LectureResponse.model_validate(lecture)
+        if not course_policy.can_view_lecture_content(db, user, course, lecture.is_preview):
+            data.content_url = None
+        return data
+
+    def _load(self, db: Session, lecture_id: str) -> Lecture:
+        lecture = self.get_by_id(db, lecture_id)
+        if not lecture:
+            raise HTTPException(
+                status_code=status.HTTP_404_NOT_FOUND,
+                detail="Lecture not found"
+            )
+        return lecture
+
+    def get_lecture(self, db: Session, lecture_id: str, current_user: User) -> LectureResponse:
+        lecture = self._load(db, lecture_id)
+        section = db.query(Section).filter(Section.id == lecture.section_id).first()
+        course = self._course_of(db, section)
+        course_policy.require_structure_access(db, current_user, course)
+        return self._to_response(db, course, lecture, current_user)
+
+    def list_lectures_for_section(
+        self,
+        db: Session,
+        section_id: str,
+        current_user: User
+    ) -> List[LectureResponse]:
+        section = db.query(Section).filter(Section.id == section_id).first()
+        if not section:
+            raise HTTPException(
+                status_code=status.HTTP_404_NOT_FOUND,
+                detail=f"Section with id '{section_id}' not found"
+            )
+        course = self._course_of(db, section)
+        course_policy.require_structure_access(db, current_user, course)
+
+        lectures = (
+            db.query(Lecture)
+            .filter(Lecture.section_id == section_id)
+            .order_by(Lecture.order_index.asc(), Lecture.created_at.asc())
+            .all()
+        )
+        return [self._to_response(db, course, lec, current_user) for lec in lectures]
+
+    def create_lecture(
+        self,
+        db: Session,
+        section_id: str,
+        lecture_in: LectureCreate,
+        current_user: User
+    ) -> Lecture:
+        section = db.query(Section).filter(Section.id == section_id).first()
+        if not section:
+            raise HTTPException(
+                status_code=status.HTTP_404_NOT_FOUND,
+                detail=f"Section with id '{section_id}' not found"
+            )
+
+        course = db.query(Course).filter(Course.id == section.course_id).first()
+        if not course:
+            raise HTTPException(
+                status_code=status.HTTP_404_NOT_FOUND,
+                detail="Parent course not found"
+            )
+
+        # Role and ownership checks
+        if current_user.role == "learner":
+            raise HTTPException(
+                status_code=status.HTTP_403_FORBIDDEN,
+                detail="Learners are not permitted to create lectures"
+            )
+        elif current_user.role == "instructor":
+            if course.instructor_id != current_user.id:
+                raise HTTPException(
+                    status_code=status.HTTP_403_FORBIDDEN,
+                    detail="Instructors can only create lectures in their own courses"
+                )
+            if course.status.lower() == "pending_review":
+                raise HTTPException(
+                    status_code=status.HTTP_409_CONFLICT,
+                    detail="Cannot modify lectures while course is pending review"
+                )
+            if course:
+                course_policy.apply_published_edit_policy(db, course, current_user)
+        elif current_user.role != "super_admin":
+            raise HTTPException(
+                status_code=status.HTTP_403_FORBIDDEN,
+                detail="Insufficient permissions to create lecture"
+            )
+
+        # Automatic order_index handling
+        if lecture_in.order_index is not None:
+            order_idx = lecture_in.order_index
+        else:
+            max_order = (
+                db.query(func.max(Lecture.order_index))
+                .filter(Lecture.section_id == section_id)
+                .scalar()
+            )
+            order_idx = 0 if max_order is None else max_order + 1
+
+        lecture = Lecture(
+            section_id=section.id,
+            title=lecture_in.title.strip(),
+            content_url=lecture_in.content_url.strip() if lecture_in.content_url else None,
+            duration=lecture_in.duration if lecture_in.duration is not None else 0,
+            order_index=order_idx,
+            is_preview=bool(lecture_in.is_preview),
+        )
+
+        try:
+            db.add(lecture)
+            db.commit()
+            db.refresh(lecture)
+            return lecture
+        except HTTPException:
+            raise
+        except Exception:
+            db.rollback()
+            raise
+
+    def update_lecture(
+        self,
+        db: Session,
+        lecture_id: str,
+        lecture_in: LectureUpdate,
+        current_user: User
+    ) -> Lecture:
+        lecture = self._load(db, lecture_id)
+        section = db.query(Section).filter(Section.id == lecture.section_id).first()
+        course = db.query(Course).filter(Course.id == section.course_id).first() if section else None
+
+        # Role and ownership checks
+        if current_user.role == "learner":
+            raise HTTPException(
+                status_code=status.HTTP_403_FORBIDDEN,
+                detail="Learners cannot update lectures"
+            )
+        elif current_user.role == "instructor":
+            if not course or course.instructor_id != current_user.id:
+                raise HTTPException(
+                    status_code=status.HTTP_403_FORBIDDEN,
+                    detail="Instructors can only update lectures in their own courses"
+                )
+            if course and course.status.lower() == "pending_review":
+                raise HTTPException(
+                    status_code=status.HTTP_409_CONFLICT,
+                    detail="Cannot modify lectures while course is pending review"
+                )
+            if course:
+                course_policy.apply_published_edit_policy(db, course, current_user)
+        elif current_user.role != "super_admin":
+            raise HTTPException(
+                status_code=status.HTTP_403_FORBIDDEN,
+                detail="Insufficient permissions to update lecture"
+            )
+
+        if lecture_in.title is not None:
+            lecture.title = lecture_in.title.strip()
+
+        if lecture_in.content_url is not None:
+            lecture.content_url = lecture_in.content_url.strip() if lecture_in.content_url else None
+        if lecture_in.is_preview is not None:
+            lecture.is_preview = lecture_in.is_preview
+
+        if lecture_in.duration is not None:
+            lecture.duration = lecture_in.duration
+
+        if lecture_in.order_index is not None:
+            lecture.order_index = lecture_in.order_index
+
+        try:
+            db.commit()
+            db.refresh(lecture)
+            return lecture
+        except HTTPException:
+            raise
+        except Exception:
+            db.rollback()
+            raise
+
+    def delete_lecture(
+        self,
+        db: Session,
+        lecture_id: str,
+        current_user: User
+    ) -> None:
+        lecture = self._load(db, lecture_id)
+        section = db.query(Section).filter(Section.id == lecture.section_id).first()
+        course = db.query(Course).filter(Course.id == section.course_id).first() if section else None
+
+        # Role and ownership checks
+        if current_user.role == "learner":
+            raise HTTPException(
+                status_code=status.HTTP_403_FORBIDDEN,
+                detail="Learners cannot delete lectures"
+            )
+        elif current_user.role == "instructor":
+            if not course or course.instructor_id != current_user.id:
+                raise HTTPException(
+                    status_code=status.HTTP_403_FORBIDDEN,
+                    detail="Instructors can only delete lectures in their own courses"
+                )
+            if course and course.status.lower() == "pending_review":
+                raise HTTPException(
+                    status_code=status.HTTP_409_CONFLICT,
+                    detail="Cannot modify lectures while course is pending review"
+                )
+            if course:
+                course_policy.apply_published_edit_policy(db, course, current_user)
+        elif current_user.role != "super_admin":
+            raise HTTPException(
+                status_code=status.HTTP_403_FORBIDDEN,
+                detail="Insufficient permissions to delete lecture"
+            )
+
+        # Safe Deletion: Check if learner progress records exist for this lecture
+        progress_count = db.query(Progress).filter(Progress.lecture_id == lecture.id).count()
+        if progress_count > 0:
+            raise HTTPException(
+                status_code=status.HTTP_409_CONFLICT,
+                detail=f"Cannot delete lecture '{lecture.title}' because learner progress records exist for this lecture."
+            )
+
+        try:
+            db.delete(lecture)
+            db.commit()
+        except HTTPException:
+            raise
+        except Exception:
+            db.rollback()
+            raise
+
+lecture_service = LectureService()

@@ -40,6 +40,12 @@ def get_current_user(
     if user is None:
         raise credentials_exception
 
+    if not user.is_active:
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail=f"This account is {user.status}",
+        )
+
     return user
 
 def require_role(*allowed_roles: str) -> Callable[..., User]:

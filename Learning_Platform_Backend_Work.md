@@ -326,6 +326,10 @@ Do not commit `.env` files, passwords or secret keys.
 
 The audit identified the following gaps. Whether all are required for the first release depends on the agreed product scope.
 
+### Database update (Alembic)
+
+The schema is now managed with Alembic (`backend/alembic/`): 58 tables covering PROJECT.md, including certificates, reviews, organizations, Q&A, coding exercises, notifications, settings, personalization and gamification. The progress uniqueness constraint, user account status (active / inactive / suspended) and a Super Admin bootstrap script (`python -m scripts.create_super_admin`) are in place. Most new tables still need services and API endpoints. See `database/README.md` and `docs/database-design.md`.
+
 ### 15.1 Certificate generation and verification — not implemented
 
 The audit reported that a Certificate model exists, but issuance and verification services/endpoints are placeholders or unfinished.
@@ -405,7 +409,7 @@ The audit reported that a Super Admin request for course progress without a targ
 ### Remaining or requiring verification
 
 - [ ] Live Supabase connectivity and real database read/write tests
-- [ ] Progress uniqueness constraint and migration
+- [x] Progress uniqueness constraint and migration (Alembic revision 0002)
 - [ ] Complete global enrollment listing for Super Admin
 - [ ] Super Admin analytics
 - [ ] Instructor analytics

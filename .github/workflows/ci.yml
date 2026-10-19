@@ -9,12 +9,31 @@ on:
 jobs:
   backend-test:
     runs-on: ubuntu-latest
+    services:
+      # Real PostgreSQL so the Alembic migrations are tested on every push.
+      postgres:
+        image: postgres:15
+        env:
+          POSTGRES_USER: postgres
+          POSTGRES_PASSWORD: postgres
+          POSTGRES_DB: lp_migration_test
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd "pg_isready -U postgres"
+          --health-interval 5s
+          --health-timeout 5s
+          --health-retries 10
+    env:
+      # Unit tests use in-memory SQLite (see tests/conftest.py); this one DB is only
+      # for tests/test_migrations.py, which upgrades, checks and downgrades it.
+      TEST_POSTGRES_URL: postgresql://postgres:postgres@localhost:5432/lp_migration_test
     steps:
-      - uses: actions/checkout@v3
+      - uses: actions/checkout@v4
       - name: Set up Python
-        uses: actions/setup-python@v4
+        uses: actions/setup-python@v5
         with:
-          python-version: '3.10'
+          python-version: '3.11'
       - name: Install Dependencies
         run: |
           cd backend

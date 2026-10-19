@@ -66,11 +66,24 @@ class UserService:
 
         return users, total, total_pages
 
-    def admin_update_user(self, db: Session, target_user: User, update_in: AdminUserUpdate) -> User:
+    def admin_update_user(
+        self, db: Session, target_user: User, update_in: AdminUserUpdate, current_user: Optional[User] = None
+    ) -> User:
         """
         Updates a target user by an authorized administrator.
-        Permits updating full_name, role, and email.
+        Permits updating full_name, role, email and account status (activate / deactivate / suspend).
+        Administrators cannot change their own status, so they cannot lock themselves out.
         """
+        if (
+            update_in.status is not None
+            and current_user is not None
+            and current_user.id == target_user.id
+            and update_in.status != target_user.status
+        ):
+            raise HTTPException(
+                status_code=status.HTTP_400_BAD_REQUEST,
+                detail="Administrators cannot change their own account status"
+            )
         if update_in.email is not None and update_in.email != target_user.email:
             existing = self.get_user_by_email(db, update_in.email)
             if existing and existing.id != target_user.id:
@@ -85,6 +98,9 @@ class UserService:
 
         if update_in.role is not None:
             target_user.role = update_in.role
+
+        if update_in.status is not None:
+            target_user.status = update_in.status
 
         target_user.updated_at = datetime.utcnow()
         try:

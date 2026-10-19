@@ -62,6 +62,7 @@ class UserLogin(BaseSchema):
 
 class UserResponse(UserBase):
     id: str
+    status: Optional[str] = "active"
     created_at: Optional[datetime] = None
     updated_at: Optional[datetime] = None
 
@@ -94,6 +95,17 @@ class AdminUserUpdate(BaseSchema):
     full_name: Optional[str] = None
     role: Optional[str] = None
     email: Optional[str] = None
+    status: Optional[str] = None  # active | inactive | suspended
+
+    @field_validator("status")
+    @classmethod
+    def validate_status(cls, v: Optional[str]) -> Optional[str]:
+        if v is not None:
+            cleaned = v.lower().strip()
+            if cleaned not in ["active", "inactive", "suspended"]:
+                raise ValueError("Status must be one of: active, inactive, suspended")
+            return cleaned
+        return v
 
     @field_validator("full_name")
     @classmethod

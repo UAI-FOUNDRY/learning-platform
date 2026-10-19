@@ -1,3 +1,4 @@
+from datetime import datetime
 from typing import Optional
 from sqlalchemy.orm import Session
 from fastapi import HTTPException, status
@@ -62,6 +63,14 @@ class AuthService:
         if not verify_password(password, user.hashed_password):
             return None
         return user
+
+    def record_login(self, db: Session, user: User) -> None:
+        """Stores the time of the last successful login (best effort; never blocks login)."""
+        try:
+            user.last_login_at = datetime.utcnow()
+            db.commit()
+        except Exception:
+            db.rollback()
 
     def create_user_token(self, user: User) -> TokenResponse:
         access_token = create_access_token(

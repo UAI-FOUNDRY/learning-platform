@@ -107,7 +107,7 @@ def admin_update_user(
             status_code=status.HTTP_404_NOT_FOUND,
             detail="User not found"
         )
-    return user_service.admin_update_user(db, user, update_in)
+    return user_service.admin_update_user(db, user, update_in, current_user=current_user)
 
 
 @router.delete("/{user_id}", response_model=MessageResponse)

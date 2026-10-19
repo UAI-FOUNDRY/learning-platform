@@ -54,9 +54,12 @@ foundryT-2/
    - `SECRET_KEY`: Random secret string for JWT signature generation.
    - `ACCESS_TOKEN_EXPIRE_MINUTES`: JWT token lifetime in minutes (default: 60).
    - Connection pool settings: `DB_POOL_SIZE` (default: 5), `DB_MAX_OVERFLOW` (default: 10), `DB_POOL_RECYCLE` (default: 1800).
-6. Run database migrations or initial schema (if connecting to a fresh database):
+6. Create or upgrade the database schema with Alembic, load categories, and create the first Super Admin
+   (full guide, including Supabase connection tips: `database/README.md`):
    ```bash
-   # Schema script located at database/schema/database-schema.sql
+   alembic upgrade head
+   psql "$DATABASE_URL" -f ../database/seeds/categories.sql
+   python -m scripts.create_super_admin --email you@example.com --name "Your Name"
    ```
 7. Run tests:
    ```bash

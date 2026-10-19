@@ -1,8 +1,9 @@
 import uuid
 from datetime import datetime
-from sqlalchemy import Column, String, Text, DateTime, ForeignKey
+from sqlalchemy import text, Column, String, Integer, Boolean, Text, DateTime, ForeignKey
 from sqlalchemy.orm import relationship
 from app.database.connection import Base
+
 
 class Assignment(Base):
     __tablename__ = "assignments"
@@ -12,6 +13,8 @@ class Assignment(Base):
     title = Column(String(255), nullable=False)
     instructions = Column(Text, nullable=True)
     deadline = Column(DateTime(timezone=True), nullable=True)
+    max_score = Column(Integer, nullable=True)
+    allow_resubmission = Column(Boolean, nullable=False, default=True, server_default=text("true"))
     created_at = Column(DateTime(timezone=True), default=datetime.utcnow)
 
     # Relationships

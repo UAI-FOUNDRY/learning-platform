@@ -33,6 +33,12 @@ def login(credentials: UserLogin, db: Session = Depends(get_db)):
             detail="Incorrect email or password",
             headers={"WWW-Authenticate": "Bearer"},
         )
+    if not user.is_active:
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail=f"This account is {user.status}. Please contact the platform administrator.",
+        )
+    auth_service.record_login(db, user)
     return auth_service.create_user_token(user)
 
 @router.get("/me", response_model=UserResponse)

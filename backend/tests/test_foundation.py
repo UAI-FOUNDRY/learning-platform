@@ -50,12 +50,13 @@ def test_2_health_endpoint_works(client):
     assert "DATABASE_URL" not in data
 
 def test_3_models_can_be_imported_cleanly():
-    """Verify all 16 SQLAlchemy models can be imported cleanly without circular imports."""
-    assert len(models.__all__) == 16
+    """Verify every exported model / association table imports cleanly without circular imports."""
+    from sqlalchemy import Table
+    assert len(models.__all__) >= 16
     for model_name in models.__all__:
         assert hasattr(models, model_name)
         model_cls = getattr(models, model_name)
-        assert hasattr(model_cls, "__tablename__")
+        assert hasattr(model_cls, "__tablename__") or isinstance(model_cls, Table)
 
 def test_4_database_session_dependency_structure(db_session):
     """Verify database session dependency yields session and handles commit/rollback."""
@@ -72,9 +73,11 @@ def test_4_database_session_dependency_structure(db_session):
         pass
 
 def test_5_basic_model_metadata_is_valid():
-    """Verify SQLAlchemy metadata contains all 16 tables matching the SQL schema."""
+    """Verify the 16 core tables are still registered and every table has a primary key."""
     registered_tables = list(Base.metadata.tables.keys())
-    assert len(registered_tables) == 16
+    assert len(registered_tables) >= 16
+    for table in Base.metadata.tables.values():
+        assert table.primary_key.columns, f"Table {table.name} has no primary key"
     for table_name in EXPECTED_TABLES:
         assert table_name in registered_tables, f"Missing table {table_name} in metadata"
         table = Base.metadata.tables[table_name]

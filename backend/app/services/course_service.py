@@ -12,6 +12,8 @@ from app.models.section import Section
 from app.models.lecture import Lecture
 from app.schemas.course import CourseCreate, CourseUpdate, CourseStatus
 from app.services import course_policy
+from app.services.audit_service import audit_service
+from app.services.notification_service import notification_service
 
 class CourseService:
     def get_by_id(self, db: Session, course_id: str) -> Optional[Course]:
@@ -390,6 +392,7 @@ class CourseService:
                 detail=f"Cannot approve course: course must be in 'pending_review' status, but is '{course.status}'"
             )
 
+        audit_service.log(db, current_user, "course.approved", "course", course.id, {"status": [course.status, "published"]})
         course_policy.log_approval(db, course, current_user, "approved", course.status, CourseStatus.PUBLISHED)
         course.status = CourseStatus.PUBLISHED
         if course.published_at is None:
@@ -402,6 +405,7 @@ class CourseService:
         try:
             db.commit()
             db.refresh(course)
+            notification_service.notify(db, course.instructor_id, "course_approved", "Course published", "Your course \"%s\" was approved and is now live." % course.title, f"/instructor/courses/{course.id}", {"course_id": course.id})
             return course
         except HTTPException:
             raise
@@ -441,6 +445,7 @@ class CourseService:
                 detail="Feedback cannot exceed 2000 characters"
             )
 
+        audit_service.log(db, current_user, "course.changes_requested", "course", course.id, {"status": [course.status, "changes_requested"]})
         course_policy.log_approval(db, course, current_user, "changes_requested", course.status, CourseStatus.CHANGES_REQUESTED, cleaned_feedback)
         course.status = CourseStatus.CHANGES_REQUESTED
         course.review_feedback = cleaned_feedback
@@ -451,6 +456,7 @@ class CourseService:
         try:
             db.commit()
             db.refresh(course)
+            notification_service.notify(db, course.instructor_id, "changes_requested", "Changes requested", "Changes were requested for \"%s\": %s" % (course.title, cleaned_feedback), f"/instructor/courses/{course.id}", {"course_id": course.id})
             return course
         except HTTPException:
             raise
@@ -490,6 +496,7 @@ class CourseService:
                 detail="Rejection reason cannot exceed 2000 characters"
             )
 
+        audit_service.log(db, current_user, "course.rejected", "course", course.id, {"status": [course.status, "rejected"]})
         course_policy.log_approval(db, course, current_user, "rejected", course.status, CourseStatus.REJECTED, cleaned_reason)
         course.status = CourseStatus.REJECTED
         course.review_feedback = cleaned_reason
@@ -500,6 +507,7 @@ class CourseService:
         try:
             db.commit()
             db.refresh(course)
+            notification_service.notify(db, course.instructor_id, "course_rejected", "Course rejected", "\"%s\" was rejected: %s" % (course.title, cleaned_reason), f"/instructor/courses/{course.id}", {"course_id": course.id})
             return course
         except HTTPException:
             raise

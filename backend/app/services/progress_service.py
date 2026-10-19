@@ -206,6 +206,13 @@ class ProgressService:
                 db.rollback()
                 raise
             if enrollment.status == "COMPLETED":
+                from app.services.notification_service import notification_service
+                done_course = db.get(Course, enrollment.course_id)
+                notification_service.notify(
+                    db, enrollment.user_id, "course_completed", "Course completed",
+                    f"Congratulations! You completed {done_course.title if done_course else 'the course'}.",
+                    f"/courses/{enrollment.course_id}", {"course_id": enrollment.course_id},
+                )
                 # Imported here to avoid a circular import; never raises.
                 from app.services.certificate_service import certificate_service
                 certificate_service.auto_issue_if_enabled(db, enrollment)

@@ -417,8 +417,11 @@ The audit reported that a Super Admin request for course progress without a targ
 - [ ] Live Supabase connectivity and real database read/write tests
 - [x] Progress uniqueness constraint and migration (Alembic revision 0002)
 - [x] Global enrollment listing (Super Admin all, Instructor own courses) and `/admin/overview`
-- [ ] Super Admin analytics (charts over time; the `/admin/overview` totals exist)
-- [ ] Instructor analytics
+- [x] Super Admin analytics (`/analytics/platform`)
+- [x] Instructor and per-course analytics
+- [x] Platform settings API, audit log, login history
+- [x] Notifications, preferences and announcements
+- [x] Completed learners can still take quizzes and submit assignments
 - [x] Certificate issuance and verification (auto-issue, public verify, PDF, revoke)
 - [x] Course reviews and ratings (incl. moderation and rating summary)
 - [x] Organization/university management (members, course linking, stats)

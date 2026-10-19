@@ -36,6 +36,8 @@ def to_response(review: Review) -> ReviewResponse:
         updated_at=review.updated_at,
     )
 
+from app.services.audit_service import audit_service
+
 
 class ReviewService:
     def _get_or_404(self, db: Session, review_id: str) -> Review:
@@ -150,6 +152,7 @@ class ReviewService:
 
     def moderate(self, db: Session, review_id: str, new_status: str, current_user: User) -> Review:
         review = self._get_or_404(db, review_id)
+        audit_service.log(db, current_user, "review.moderated", "review", review.id, {"status": [review.status, new_status]})
         review.status = new_status
         review.moderated_by = current_user.id
         review.moderated_at = datetime.utcnow()

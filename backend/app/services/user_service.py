@@ -4,6 +4,7 @@ from sqlalchemy.orm import Session
 from sqlalchemy import or_, func
 from fastapi import HTTPException, status
 from app.models.user import User
+from app.services.audit_service import audit_service
 from app.schemas.user import UserProfileUpdate, AdminUserUpdate
 
 class UserService:
@@ -84,6 +85,11 @@ class UserService:
                 status_code=status.HTTP_400_BAD_REQUEST,
                 detail="Administrators cannot change their own account status"
             )
+        changes = {}
+        for field in ("email", "full_name", "role", "status"):
+            new_value = getattr(update_in, field)
+            if new_value is not None and new_value != getattr(target_user, field):
+                changes[field] = [getattr(target_user, field), new_value]
         if update_in.email is not None and update_in.email != target_user.email:
             existing = self.get_user_by_email(db, update_in.email)
             if existing and existing.id != target_user.id:
@@ -103,6 +109,9 @@ class UserService:
             target_user.status = update_in.status
 
         target_user.updated_at = datetime.utcnow()
+        if changes:
+            action = "user.status_changed" if set(changes) == {"status"} else "user.updated"
+            audit_service.log(db, current_user, action, "user", target_user.id, changes)
         try:
             db.commit()
             db.refresh(target_user)
@@ -129,6 +138,8 @@ class UserService:
                 for course in target_user.courses:
                     course.instructor_id = None
 
+            audit_service.log(db, current_user, "user.deleted", "user", target_user.id,
+                              {"email": [target_user.email, None], "role": [target_user.role, None]})
             db.delete(target_user)
             db.commit()
         except Exception:

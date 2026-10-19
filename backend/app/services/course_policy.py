@@ -8,6 +8,7 @@ from sqlalchemy.orm import Session
 from app.models.course import Course
 from app.models.course_approval_log import CourseApprovalLog
 from app.models.user import User
+from app.services.audit_service import audit_service
 from app.services.platform_settings_service import get_setting
 
 PUBLISHED = "published"
@@ -77,6 +78,7 @@ def reopen_for_editing(db: Session, course: Course, actor: User) -> Course:
     if (course.status or "").lower() != PUBLISHED:
         raise HTTPException(status.HTTP_400_BAD_REQUEST, "Only published courses can be reopened for editing")
     log_approval(db, course, actor, "unpublished", PUBLISHED, "draft", "Reopened for editing")
+    audit_service.log(db, actor, "course.reopened", "course", course.id, {"status": [PUBLISHED, "draft"]})
     course.status = "draft"
     course.updated_at = datetime.utcnow()
     try:

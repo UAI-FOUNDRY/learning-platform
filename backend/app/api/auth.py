@@ -12,6 +12,7 @@ from app.schemas.user import (
     ForgotPasswordRequest, ResetPasswordRequest, ChangePasswordRequest, VerifyEmailRequest,
 )
 from app.services.email_service import email_service
+from app.services.notification_service import notification_service
 from app.services.platform_settings_service import get_setting
 from app.services.session_service import (
     session_service, REFRESH, PASSWORD_RESET, EMAIL_VERIFICATION,
@@ -35,6 +36,12 @@ def register(user_in: UserRegister, request: Request, db: Session = Depends(get_
     """
     user = auth_service.register_user(db, user_in)
     _send_verification(db, user, _client_ip(request))
+    notification_service.notify(
+        db, user.id, "welcome", "Welcome to the platform",
+        "Your account is ready. Browse the catalog and start learning." if user.role == "learner"
+        else "Your account is ready. Create your first course from the instructor area.",
+        "/", None,
+    )
     return user
 
 

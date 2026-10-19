@@ -100,4 +100,4 @@ def revoke_certificate(
     current_user: User = Depends(require_role("super_admin")),
 ):
     """Super Admin: revoke a certificate (e.g. academic misconduct). Verification then shows it as revoked."""
-    return certificate_service.revoke(db, certificate_id, body.reason)
+    return certificate_service.revoke(db, certificate_id, body.reason, current_user)

@@ -16,6 +16,9 @@ from app.api.assignments import router as assignments_router, section_assignment
 from app.api.certificates import router as certificates_router
 from app.api.reviews import router as reviews_router
 from app.api.admin import router as admin_router
+from app.api.settings import router as settings_router
+from app.api.analytics import router as analytics_router
+from app.api.notifications import router as notifications_router, announcements_router
 from app.api.sections import router as sections_router
 from app.api.lectures import router as lectures_router
 
@@ -72,4 +75,8 @@ app.include_router(assignments_router, prefix="/api/v1/assignments", tags=["Assi
 app.include_router(section_assignments_router, prefix="/api/v1", tags=["Assignments"])
 app.include_router(certificates_router, prefix="/api/v1/certificates", tags=["Certificates"])
 app.include_router(reviews_router, prefix="/api/v1/reviews", tags=["Reviews"])
+app.include_router(settings_router, prefix="/api/v1/settings", tags=["Settings"])
+app.include_router(notifications_router, prefix="/api/v1/notifications", tags=["Notifications"])
+app.include_router(announcements_router, prefix="/api/v1/announcements", tags=["Announcements"])
+app.include_router(analytics_router, prefix="/api/v1/analytics", tags=["Analytics"])
 app.include_router(admin_router, prefix="/api/v1/admin", tags=["Admin"])

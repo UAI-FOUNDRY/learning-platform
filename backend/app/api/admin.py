@@ -10,6 +10,9 @@ from app.schemas.course import (
 )
 from app.services.course_service import course_service
 from app.services.admin_service import admin_service
+from app.services.audit_service import audit_service
+from app.schemas.settings import AuditLogResponse, LoginHistoryResponse
+from app.models.security import LoginHistory
 from app.api.deps import require_role
 
 router = APIRouter()
@@ -86,3 +89,48 @@ def reject_course(
     Accessible only to Super Admin.
     """
     return course_service.reject_course(db, course_id, reject_in.reason, current_user)
+
+
+@router.get("/audit-logs", response_model=List[AuditLogResponse])
+def list_audit_logs(
+    action: Optional[str] = Query(None, description="Prefix match, e.g. 'course.' or 'user.status_changed'"),
+    actor_id: Optional[str] = None,
+    entity_type: Optional[str] = Query(None, description="user, course, review, certificate, platform_settings"),
+    entity_id: Optional[str] = None,
+    page: Optional[int] = Query(None, ge=1),
+    limit: int = Query(50, ge=1, le=200),
+    skip: int = Query(0, ge=0),
+    db: Session = Depends(get_db),
+    current_user: User = Depends(require_role("super_admin")),
+):
+    """Who did what: user changes, course decisions, review moderation, revoked certificates, settings edits."""
+    offset = (page - 1) * limit if page is not None else skip
+    rows = audit_service.list(db, action, actor_id, entity_type, entity_id, offset, limit)
+    return [
+        AuditLogResponse(
+            id=r.id, actor_id=r.actor_id, actor_name=r.actor.full_name if r.actor else None,
+            action=r.action, entity_type=r.entity_type, entity_id=r.entity_id,
+            changes=r.changes, ip_address=r.ip_address, created_at=r.created_at,
+        )
+        for r in rows
+    ]
+
+
+@router.get("/login-history", response_model=List[LoginHistoryResponse])
+def list_login_history(
+    email: Optional[str] = None,
+    success: Optional[bool] = None,
+    page: Optional[int] = Query(None, ge=1),
+    limit: int = Query(50, ge=1, le=200),
+    skip: int = Query(0, ge=0),
+    db: Session = Depends(get_db),
+    current_user: User = Depends(require_role("super_admin")),
+):
+    """Every login attempt (successful or not) for security monitoring."""
+    offset = (page - 1) * limit if page is not None else skip
+    q = db.query(LoginHistory)
+    if email:
+        q = q.filter(LoginHistory.email == email.strip().lower())
+    if success is not None:
+        q = q.filter(LoginHistory.success.is_(success))
+    return q.order_by(LoginHistory.created_at.desc()).offset(offset).limit(limit).all()

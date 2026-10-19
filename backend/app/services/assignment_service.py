@@ -3,6 +3,7 @@ from typing import Optional, List, Tuple, Union, Any
 from sqlalchemy.orm import Session
 from fastapi import HTTPException, status
 from app.services import course_policy
+from app.services.notification_service import notification_service
 from sqlalchemy.orm import object_session
 
 from app.models.assignment import Assignment
@@ -138,7 +139,7 @@ class AssignmentService:
                 .filter(
                     Enrollment.user_id == current_user.id,
                     Enrollment.course_id == course.id,
-                    Enrollment.status == "ACTIVE"
+                    Enrollment.status.in_(["ACTIVE", "COMPLETED"])
                 )
                 .first()
             )
@@ -551,6 +552,11 @@ class AssignmentService:
         try:
             db.commit()
             db.refresh(submission)
+            notification_service.notify(
+                db, submission.user_id, "assignment_graded", f"Assignment graded: {assignment.title}",
+                f"Grade: {submission.grade}" + (f". Feedback: {submission.feedback[:300]}" if submission.feedback else ""),
+                f"/assignments/{assignment.id}", {"assignment_id": assignment.id, "submission_id": submission.id},
+            )
             return submission
         except HTTPException:
             raise

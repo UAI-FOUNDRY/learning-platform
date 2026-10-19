@@ -134,3 +134,22 @@ def test_negative_position_rejected(client, db_session):
     enroll(db_session, learner, course)
     r = client.post(f"{API}/progress/lecture/{lectures[0].id}", headers=auth(learner), json={"last_position_seconds": -1})
     assert r.status_code == 422
+
+
+def test_learner_who_finished_all_lectures_can_still_take_quiz_and_submit(client, db_session):
+    """Completing the lectures flips the enrollment to COMPLETED; quizzes/assignments must keep working."""
+    inst = make_user(db_session, "instructor")
+    learner = make_user(db_session)
+    course, lectures = make_course(db_session, inst, lectures=1)
+    enroll(db_session, learner, course)
+    quiz, qs = _quiz(db_session, course)
+    asg = _assignment(db_session, course)
+    client.post(f"{API}/progress/lecture/{lectures[0].id}", headers=auth(learner), json={"is_completed": True})
+    assert db_session.query(Enrollment).filter_by(user_id=learner.id).one().status == "COMPLETED"
+
+    r = client.post(f"{API}/quizzes/{quiz.id}/attempt", headers=auth(learner),
+                    json={"answers": [{"question_id": qs[0].id, "selected_option": "4"}]})
+    assert r.status_code == 201
+    assert client.get(f"{API}/quizzes/{quiz.id}", headers=auth(learner)).status_code == 200
+    s = client.post(f"{API}/assignments/{asg.id}/submit", headers=auth(learner), json={"submission_url": "https://e.example/x"})
+    assert s.status_code == 201

@@ -34,6 +34,9 @@ def _new_verification_code() -> str:
     body = "".join(secrets.choice(_CODE_ALPHABET) for _ in range(12))
     return f"LP-{body[:4]}-{body[4:8]}-{body[8:]}"
 
+from app.services.audit_service import audit_service
+from app.services.notification_service import notification_service
+
 
 class CertificateService:
     # ------------------------------------------------------------------ helpers
@@ -116,6 +119,11 @@ class CertificateService:
                 db.add(cert)
                 db.commit()
                 db.refresh(cert)
+                notification_service.notify(
+                    db, cert.user_id, "certificate_issued", "Your certificate is ready",
+                    f"You earned a certificate for {cert.course_title or 'your course'}.",
+                    "/certificates", {"certificate_id": cert.id, "course_id": cert.course_id},
+                )
                 return cert
             except IntegrityError:
                 db.rollback()
@@ -205,10 +213,11 @@ class CertificateService:
         return cert
 
     # ------------------------------------------------------------------ admin
-    def revoke(self, db: Session, certificate_id: str, reason: str) -> Certificate:
+    def revoke(self, db: Session, certificate_id: str, reason: str, actor=None) -> Certificate:
         cert = self._get_or_404(db, certificate_id)
         if cert.status == "revoked":
             raise HTTPException(status_code=status.HTTP_409_CONFLICT, detail="Certificate is already revoked")
+        audit_service.log(db, actor, "certificate.revoked", "certificate", cert.id, {"reason": [None, reason]})
         cert.status = "revoked"
         cert.revoked_at = datetime.utcnow()
         cert.revoked_reason = reason

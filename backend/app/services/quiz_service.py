@@ -4,6 +4,7 @@ from sqlalchemy.orm import Session
 from sqlalchemy import func
 from fastapi import HTTPException, status
 from app.services import course_policy
+from app.services.notification_service import notification_service
 from sqlalchemy.orm import object_session
 
 from app.models.quiz import Quiz
@@ -157,7 +158,7 @@ class QuizService:
                 .filter(
                     Enrollment.user_id == current_user.id,
                     Enrollment.course_id == course.id,
-                    Enrollment.status == "ACTIVE"
+                    Enrollment.status.in_(["ACTIVE", "COMPLETED"])
                 )
                 .first()
             )
@@ -516,7 +517,7 @@ class QuizService:
             .filter(
                 Enrollment.user_id == current_user.id,
                 Enrollment.course_id == course.id,
-                Enrollment.status == "ACTIVE"
+                Enrollment.status.in_(["ACTIVE", "COMPLETED"])
             )
             .first()
         )
@@ -615,6 +616,12 @@ class QuizService:
         except Exception:
             db.rollback()
             raise
+
+        notification_service.notify(
+            db, current_user.id, "quiz_result", f"Quiz result: {quiz.title}",
+            f"You scored {score}% ({correct_count}/{total_questions}). " + ("Passed." if passed else "Not passed yet, you can try again."),
+            f"/quizzes/{quiz.id}", {"quiz_id": quiz.id, "attempt_id": attempt.id, "score": score, "passed": passed},
+        )
 
         return QuizAttemptResponse(
             id=attempt.id,

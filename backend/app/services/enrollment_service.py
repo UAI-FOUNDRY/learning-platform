@@ -7,6 +7,7 @@ from app.models.enrollment import Enrollment
 from app.models.course import Course
 from app.models.user import User
 from app.models.certificate import Certificate
+from app.services.notification_service import notification_service
 
 class EnrollmentService:
     def enroll_in_course(self, db: Session, course_id: str, current_user: User) -> Enrollment:
@@ -67,12 +68,16 @@ class EnrollmentService:
             db.add(enrollment)
             db.commit()
             db.refresh(enrollment)
-            return enrollment
         except HTTPException:
             raise
         except Exception:
             db.rollback()
             raise
+        notification_service.notify(
+            db, current_user.id, "course_enrollment", "You are enrolled",
+            f"You are now enrolled in {course.title}.", f"/courses/{course.id}", {"course_id": course.id},
+        )
+        return enrollment
 
     def get_my_enrollments(
         self,

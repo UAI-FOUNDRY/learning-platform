@@ -24,7 +24,10 @@ client_id / client_secret empty, and click Authorize. Every 🔒 endpoint then s
 - **Assignments**: `/api/v1/assignments`
 - **Certificates**: `/api/v1/certificates`: issuing, public verification, PDF, revocation
 - **Reviews**: `/api/v1/reviews`: ratings, reviews, moderation
-- **Admin**: `/api/v1/admin`: dashboard overview, course approval workflow
+- **Admin**: `/api/v1/admin`: dashboard overview, course approval workflow, audit log, login history
+- **Settings**: `/api/v1/settings`: platform settings (public subset + Super Admin editing)
+- **Notifications / Announcements**: `/api/v1/notifications`, `/api/v1/announcements`
+- **Analytics**: `/api/v1/analytics`: platform, instructor and per-course reporting
 
 ## Errors
 Every error is JSON: `{ "message": "...", "detail": ..., "error_type": "..." }`.
@@ -75,6 +78,52 @@ Every error is JSON: `{ "message": "...", "detail": ..., "error_type": "..." }`.
 * Progress: `POST /progress/lecture/{id}` accepts `{is_completed?, last_position_seconds?}`.
   A position-only body saves the resume point without completing the lecture; an empty body still
   means "completed". `completed_at` and the enrollment's `last_lecture_id` / `last_accessed_at` are kept.
+
+## Platform settings
+| Method & path | Who | What |
+|---|---|---|
+| `GET /settings/public` | **public** | settings flagged public (platform name, logo, languages, registration open...) |
+| `GET /settings?category=` | Super Admin | all settings (`general, users, courses, certificates, notifications, security, content`) |
+| `PUT /settings/{key}` `{value}` | Super Admin | change one |
+| `PUT /settings` `{values: {key: value, ...}}` | Super Admin | change several, all or nothing |
+
+A value must keep the type of its default (switch stays true/false, number stays a whole number,
+list stays a list) and numbers have sensible ranges (e.g. `security.password_min_length` 6-128).
+Errors are `422` with the key named in `message`. Changes are written to the audit log.
+
+## Audit log and login history (Super Admin)
+* `GET /admin/audit-logs?action=&actor_id=&entity_type=&entity_id=`: who changed what, with
+  `changes: {field: [old, new]}`. `action` is a prefix match. Recorded: `user.updated`,
+  `user.status_changed`, `user.deleted`, `course.approved / rejected / changes_requested / reopened`,
+  `review.moderated`, `certificate.revoked`, `settings.updated`.
+* `GET /admin/login-history?email=&success=`: every login attempt with reason and IP.
+
+## Notifications and announcements
+Notifications are created automatically: `welcome`, `course_enrollment`, `quiz_result`,
+`assignment_graded`, `course_completed`, `certificate_issued`, `course_approved`,
+`changes_requested`, `course_rejected`, and announcements.
+
+| Method & path | What |
+|---|---|
+| `GET /notifications?unread_only=&page=&limit=` | my notifications, newest first |
+| `GET /notifications/unread-count` | `{unread: n}` for the bell icon |
+| `POST /notifications/{id}/read`, `POST /notifications/read-all`, `DELETE /notifications/{id}` | manage |
+| `GET/PUT /notifications/preferences` | per type: `in_app_enabled`, `email_enabled` (default on) |
+| `POST /announcements` `{title, body, audience, course_id?}` | instructor: `audience: "course"` for own course. Super Admin also `all`, `learners`, `instructors` |
+| `GET /announcements?course_id=` | announcements I can see |
+| `DELETE /announcements/{id}` | author or Super Admin |
+
+Email is sent only if the setting `notifications.email_enabled` is on, the user has not turned
+email off for that type, and an email backend is configured. Announcements are in-app only.
+
+## Analytics
+All three accept `days` (7-365, default 30) and return a `series` with one row per day.
+
+| Endpoint | Who | Contents |
+|---|---|---|
+| `GET /analytics/platform` | Super Admin | daily `new_users / enrollments / completions / certificates`, period totals, top courses, categories, top instructors |
+| `GET /analytics/instructor` | Instructor (own); Super Admin with `instructor_id` | totals (courses, enrollments, completion rate, rating, certificates), daily series, per-course rows |
+| `GET /analytics/courses/{id}` | course owner, Super Admin | summary (completion, average progress, rating), daily series, per-lecture completion, per-quiz and per-question results, assignment grading status, rating distribution |
 
 ## Admin and enrollments
 | Method & path | Who | What |

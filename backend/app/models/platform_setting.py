@@ -1,6 +1,6 @@
 """
 Key/value platform settings managed by Super Admin (PROJECT.md section 28).
-Defaults are inserted by migration 0004.
+Defaults are inserted by migrations 0004 and 0005.
 """
 from datetime import datetime
 from sqlalchemy import Column, String, Boolean, Text, DateTime, ForeignKey, JSON, CheckConstraint, text
@@ -9,6 +9,7 @@ from app.database.connection import Base
 
 SETTING_CATEGORIES = (
     "general", "users", "courses", "certificates", "notifications", "security", "content",
+    "gamification", "coding", "ai",
 )
 
 
@@ -16,7 +17,8 @@ class PlatformSetting(Base):
     __tablename__ = "platform_settings"
     __table_args__ = (
         CheckConstraint(
-            "category IN ('general', 'users', 'courses', 'certificates', 'notifications', 'security', 'content')",
+            "category IN ('general', 'users', 'courses', 'certificates', 'notifications', 'security', 'content', "
+            "'gamification', 'coding', 'ai')",
             name="ck_platform_settings_category",
         ),
     )

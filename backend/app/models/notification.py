@@ -9,7 +9,7 @@ from app.database.connection import Base
 NOTIFICATION_TYPES = (
     "welcome", "course_enrollment", "course_approved", "course_rejected", "changes_requested",
     "assignment_deadline", "assignment_graded", "quiz_result", "course_completed",
-    "certificate_issued", "qa_reply", "instructor_announcement", "admin_announcement",
+    "certificate_issued", "qa_reply", "instructor_announcement", "admin_announcement", "badge_earned",
 )
 
 

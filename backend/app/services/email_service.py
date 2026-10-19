@@ -9,6 +9,7 @@ Sending never raises: a mail outage must not break registration or password rese
 """
 import logging
 import smtplib
+import ssl
 from email.message import EmailMessage
 from typing import List
 
@@ -31,9 +32,15 @@ class EmailService:
                 msg = EmailMessage()
                 msg["From"], msg["To"], msg["Subject"] = settings.EMAIL_FROM, to, subject
                 msg.set_content(body)
-                with smtplib.SMTP(settings.SMTP_HOST, settings.SMTP_PORT, timeout=10) as smtp:
-                    if settings.SMTP_USE_TLS:
-                        smtp.starttls()
+                timeout = settings.SMTP_TIMEOUT_SECONDS
+                if settings.SMTP_USE_SSL:
+                    client = smtplib.SMTP_SSL(settings.SMTP_HOST, settings.SMTP_PORT, timeout=timeout,
+                                              context=ssl.create_default_context())
+                else:
+                    client = smtplib.SMTP(settings.SMTP_HOST, settings.SMTP_PORT, timeout=timeout)
+                with client as smtp:
+                    if not settings.SMTP_USE_SSL and settings.SMTP_USE_TLS:
+                        smtp.starttls(context=ssl.create_default_context())
                     if settings.SMTP_USER:
                         smtp.login(settings.SMTP_USER, settings.SMTP_PASSWORD)
                     smtp.send_message(msg)
@@ -43,6 +50,19 @@ class EmailService:
         except Exception:  # pragma: no cover - network failures
             logger.exception("Could not send email to %s", to)
             return False
+
+    def describe(self) -> dict:
+        """Safe-to-show summary of the email setup (never includes the password)."""
+        backend = (settings.EMAIL_BACKEND or "console").lower()
+        return {
+            "backend": backend,
+            "delivers_real_email": backend == "smtp" and bool(settings.SMTP_HOST),
+            "from": settings.EMAIL_FROM,
+            "smtp_host": settings.SMTP_HOST or None,
+            "smtp_port": settings.SMTP_PORT if settings.SMTP_HOST else None,
+            "smtp_security": "ssl" if settings.SMTP_USE_SSL else ("starttls" if settings.SMTP_USE_TLS else "none"),
+            "smtp_user_set": bool(settings.SMTP_USER),
+        }
 
     # ---- templates -------------------------------------------------------------
     def send_password_reset(self, to: str, name: str, token: str) -> bool:

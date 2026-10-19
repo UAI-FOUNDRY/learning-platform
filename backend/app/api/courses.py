@@ -41,6 +41,8 @@ def list_courses(
     instructor_id: Optional[str] = Query(None, description="Filter courses by instructor ID"),
     status: Optional[str] = Query(None, description="Filter courses by status (e.g. draft, published)"),
     search: Optional[str] = Query(None, description="Search courses by keyword in title or description"),
+    level: Optional[str] = Query(None, description="beginner | intermediate | advanced | all_levels"),
+    language: Optional[str] = Query(None, description="Course language, e.g. English"),
     db: Session = Depends(get_db),
     current_user: Optional[User] = Depends(get_optional_user),
 ):
@@ -58,6 +60,8 @@ def list_courses(
         status_filter=status,
         search=search,
         current_user=current_user,
+        level=level,
+        language=language,
     )
 
 

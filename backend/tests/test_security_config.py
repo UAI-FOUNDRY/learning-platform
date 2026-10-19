@@ -15,7 +15,7 @@ def test_production_refuses_short_secret_and_wildcard_cors():
 
 
 def test_production_accepts_proper_values():
-    Settings(ENVIRONMENT="production", SECRET_KEY="x" * 40, CORS_ORIGINS="https://app.example.com", _env_file=None).assert_safe()
+    Settings(ENVIRONMENT="production", SECRET_KEY="x" * 40, CORS_ORIGINS="https://app.example.com", STORAGE_BACKEND="local", _env_file=None).assert_safe()
 
 
 def test_development_is_not_blocked():
@@ -33,3 +33,12 @@ def test_cors_allows_listed_origin_only(client):
     assert ok.headers.get("access-control-allow-credentials") == "true"
     bad = client.get("/api/health", headers={"Origin": "http://evil.example"})
     assert "access-control-allow-origin" not in bad.headers
+
+
+def test_production_blocks_test_only_backends():
+    base = dict(ENVIRONMENT="production", SECRET_KEY="x" * 40, CORS_ORIGINS="https://app.example.com", STORAGE_BACKEND="local", _env_file=None)
+    for bad in ({"STORAGE_BACKEND": "memory"}, {"CODE_RUNNER": "local"}, {"AI_PROVIDER": "fake"},
+                {"EMAIL_BACKEND": "smtp"}, {"CODE_RUNNER": "judge0"}, {"AI_PROVIDER": "anthropic"}):
+        import pytest
+        with pytest.raises(RuntimeError):
+            Settings(**{**base, **bad}).assert_safe()

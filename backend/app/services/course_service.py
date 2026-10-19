@@ -49,8 +49,15 @@ class CourseService:
         status_filter: Optional[str] = None,
         search: Optional[str] = None,
         current_user: Optional[User] = None,
+        level: Optional[str] = None,
+        language: Optional[str] = None,
     ) -> List[Course]:
         query = db.query(Course)
+
+        if level:
+            query = query.filter(func.lower(Course.level) == level.strip().lower())
+        if language:
+            query = query.filter(func.lower(Course.language) == language.strip().lower())
 
         if category_id:
             query = query.filter(Course.category_id == category_id.strip())
@@ -122,6 +129,10 @@ class CourseService:
             description=course_in.description.strip() if course_in.description else None,
             category_id=category.id,
             instructor_id=assigned_instructor_id,
+            level=course_in.level,
+            language=course_in.language,
+            learning_objectives=course_in.learning_objectives,
+            prerequisites=course_in.prerequisites,
             status="draft",
         )
 
@@ -206,6 +217,10 @@ class CourseService:
 
         if course_in.description is not None:
             course.description = course_in.description.strip() if course_in.description else None
+
+        for field in ("level", "language", "learning_objectives", "prerequisites"):
+            if field in course_in.model_fields_set:
+                setattr(course, field, getattr(course_in, field))
 
         course.updated_at = datetime.utcnow()
 

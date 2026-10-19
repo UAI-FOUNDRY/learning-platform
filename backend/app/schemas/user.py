@@ -2,7 +2,7 @@ from pydantic import BaseModel, ConfigDict, field_validator
 from typing import Optional, List
 from datetime import datetime
 from app.utils.validators import is_valid_email
-from app.schemas.common import BaseSchema
+from app.schemas.common import BaseSchema, StorageUrl
 
 class UserBase(BaseSchema):
     email: str
@@ -62,6 +62,7 @@ class UserLogin(BaseSchema):
 
 class UserResponse(UserBase):
     id: str
+    avatar_url: StorageUrl = None
     status: Optional[str] = "active"
     created_at: Optional[datetime] = None
     updated_at: Optional[datetime] = None

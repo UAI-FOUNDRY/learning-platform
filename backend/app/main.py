@@ -19,6 +19,12 @@ from app.api.admin import router as admin_router
 from app.api.settings import router as settings_router
 from app.api.qa import router as qa_router
 from app.api.reports import router as reports_router
+from app.api.learning import router as learning_router
+from app.api.gamification import router as gamification_router
+from app.api.coding import router as coding_router
+from app.api.ai import router as ai_router
+from app.api.personalization import router as personalization_router, recommendations_router
+from app.api.uploads import router as uploads_router, media_router, files_router
 from app.api.analytics import router as analytics_router
 from app.api.notifications import router as notifications_router, announcements_router
 from app.api.sections import router as sections_router
@@ -83,4 +89,13 @@ app.include_router(announcements_router, prefix="/api/v1/announcements", tags=["
 app.include_router(analytics_router, prefix="/api/v1/analytics", tags=["Analytics"])
 app.include_router(qa_router, prefix="/api/v1/qa", tags=["Q&A"])
 app.include_router(reports_router, prefix="/api/v1/reports", tags=["Reports"])
+app.include_router(learning_router, prefix="/api/v1/learning", tags=["Learner tools"])
+app.include_router(gamification_router, prefix="/api/v1/gamification", tags=["Gamification"])
+app.include_router(coding_router, prefix="/api/v1/coding", tags=["Coding"])
+app.include_router(ai_router, prefix="/api/v1/ai", tags=["AI tutor"])
+app.include_router(personalization_router, prefix="/api/v1/personalization", tags=["Personalization"])
+app.include_router(recommendations_router, prefix="/api/v1/recommendations", tags=["Recommendations"])
+app.include_router(uploads_router, prefix="/api/v1/uploads", tags=["Uploads"])
+app.include_router(media_router, prefix="/api/v1", tags=["Lecture media"])
+app.include_router(files_router, prefix="/api/v1/files", tags=["Files"])
 app.include_router(admin_router, prefix="/api/v1/admin", tags=["Admin"])

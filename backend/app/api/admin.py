@@ -134,3 +134,24 @@ def list_login_history(
     if success is not None:
         q = q.filter(LoginHistory.success.is_(success))
     return q.order_by(LoginHistory.created_at.desc()).offset(offset).limit(limit).all()
+
+
+@router.get("/system")
+def system_status(current_user: User = Depends(require_role("super_admin"))):
+    """How email and file storage are configured right now (no secrets are shown)."""
+    from app.services.email_service import email_service
+    from app.services.storage_service import storage_service
+    return {"email": email_service.describe(), "storage": storage_service.describe()}
+
+
+@router.post("/email/test")
+def send_test_email(current_user: User = Depends(require_role("super_admin"))):
+    """Sends a test email to the logged-in Super Admin so you can check SMTP before going live."""
+    from app.services.email_service import email_service
+    sent = email_service.send(current_user.email, "Test email from Learning Platform",
+                              "If you can read this, outgoing email works.")
+    info = email_service.describe()
+    return {"sent": sent, "to": current_user.email, "backend": info["backend"],
+            "delivers_real_email": info["delivers_real_email"],
+            "note": None if info["delivers_real_email"] else
+            "EMAIL_BACKEND is not 'smtp' with SMTP_HOST set, so nothing left the server (see the server log)."}

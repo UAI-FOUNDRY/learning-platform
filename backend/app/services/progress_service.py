@@ -213,6 +213,8 @@ class ProgressService:
                     f"Congratulations! You completed {done_course.title if done_course else 'the course'}.",
                     f"/courses/{enrollment.course_id}", {"course_id": enrollment.course_id},
                 )
+                from app.services.gamification_service import gamification_service
+                gamification_service.record(db, enrollment.user_id, "course_completed", enrollment.course_id, "course")
                 # Imported here to avoid a circular import; never raises.
                 from app.services.certificate_service import certificate_service
                 certificate_service.auto_issue_if_enabled(db, enrollment)
@@ -284,6 +286,7 @@ class ProgressService:
             enrollment.last_accessed_at = now
 
         progress = find()
+        was_done = bool(progress and progress.is_completed)
         try:
             if progress:
                 apply(progress)
@@ -307,6 +310,14 @@ class ProgressService:
         except Exception:
             db.rollback()
             raise
+
+        from app.services.gamification_service import gamification_service
+        if progress.is_completed and not was_done:
+            gamification_service.touch_activity(db, current_user.id, "learning",
+                                                minutes=max((lecture.duration or 0) // 60, 1), lectures=1)
+            gamification_service.record(db, current_user.id, "lecture_completed", lecture.id, "lecture")
+        else:
+            gamification_service.touch_activity(db, current_user.id, "learning")   # watching counts towards the streak
 
         # Check course completion and synchronize enrollment status
         _, _, _, _, _, is_course_completed = self._calculate_progress_data(db, course.id, enrollment)

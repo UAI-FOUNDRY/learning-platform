@@ -1,15 +1,72 @@
 from typing import Optional, List
 from datetime import datetime
 from pydantic import field_validator
-from app.schemas.common import BaseSchema
+from app.schemas.common import BaseSchema, StorageUrl
+
+COURSE_LEVELS = ("beginner", "intermediate", "advanced", "all_levels")
+
+
+def _clean_level(v: Optional[str]) -> Optional[str]:
+    if v is None:
+        return None
+    cleaned = v.strip().lower().replace(" ", "_").replace("-", "_")
+    if not cleaned:
+        return None
+    if cleaned not in COURSE_LEVELS:
+        raise ValueError("level must be one of: " + ", ".join(COURSE_LEVELS))
+    return cleaned
+
+
+def _clean_text_list(v: Optional[List[str]], label: str) -> Optional[List[str]]:
+    if v is None:
+        return None
+    items = [str(x).strip() for x in v if str(x).strip()]
+    if len(items) > 20:
+        raise ValueError(f"{label} cannot have more than 20 items")
+    if any(len(x) > 255 for x in items):
+        raise ValueError(f"Each item in {label} must be at most 255 characters")
+    return items
+
+
+class CourseMetaMixin(BaseSchema):
+    """Catalog details shown on the course page."""
+    level: Optional[str] = None
+    language: Optional[str] = None
+    learning_objectives: Optional[List[str]] = None
+    prerequisites: Optional[List[str]] = None
+
+    @field_validator("level")
+    @classmethod
+    def validate_level(cls, v: Optional[str]) -> Optional[str]:
+        return _clean_level(v)
+
+    @field_validator("language")
+    @classmethod
+    def validate_language(cls, v: Optional[str]) -> Optional[str]:
+        if v is None:
+            return None
+        cleaned = v.strip()
+        if len(cleaned) > 32:
+            raise ValueError("language cannot exceed 32 characters")
+        return cleaned or None
+
+    @field_validator("learning_objectives")
+    @classmethod
+    def validate_objectives(cls, v: Optional[List[str]]) -> Optional[List[str]]:
+        return _clean_text_list(v, "learning_objectives")
+
+    @field_validator("prerequisites")
+    @classmethod
+    def validate_prerequisites(cls, v: Optional[List[str]]) -> Optional[List[str]]:
+        return _clean_text_list(v, "prerequisites")
 
 class CourseInstructorSummary(BaseSchema):
     """
-    Safe public summary of course instructor without sensitive credentials.
+    Public summary of a course's instructor. Deliberately has no email address: the catalog is public.
     """
     id: str
     full_name: str
-    email: str
+    avatar_url: StorageUrl = None
 
 class CourseCategorySummary(BaseSchema):
     """
@@ -19,7 +76,7 @@ class CourseCategorySummary(BaseSchema):
     name: str
     slug: str
 
-class CourseBase(BaseSchema):
+class CourseBase(CourseMetaMixin):
     title: str
     subtitle: Optional[str] = None
     description: Optional[str] = None
@@ -63,7 +120,7 @@ class CourseBase(BaseSchema):
 class CourseCreate(CourseBase):
     instructor_id: Optional[str] = None
 
-class CourseUpdate(BaseSchema):
+class CourseUpdate(CourseMetaMixin):
     title: Optional[str] = None
     subtitle: Optional[str] = None
     description: Optional[str] = None
@@ -152,6 +209,11 @@ class CourseResponse(BaseSchema):
     instructor_id: Optional[str] = None
     category_id: Optional[str] = None
     organization_id: Optional[str] = None
+    thumbnail_url: StorageUrl = None
+    level: Optional[str] = None
+    language: Optional[str] = None
+    learning_objectives: Optional[List[str]] = None
+    prerequisites: Optional[List[str]] = None
     status: str = "draft"
     reviewer_id: Optional[str] = None
     review_feedback: Optional[str] = None

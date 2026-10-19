@@ -103,7 +103,7 @@ def test_quiz_result_and_assignment_graded_notifications(client, db_session):
 def test_preferences_default_on_and_can_be_switched_off(client, db_session):
     inst, learner = make_user(db_session, "instructor"), make_user(db_session)
     prefs = client.get(f"{API}/notifications/preferences", headers=auth(learner)).json()
-    assert all(p["in_app_enabled"] and p["email_enabled"] for p in prefs) and len(prefs) == 13
+    assert all(p["in_app_enabled"] and p["email_enabled"] for p in prefs) and len(prefs) == 14
 
     r = client.put(f"{API}/notifications/preferences", headers=auth(learner),
                    json={"preferences": [{"notification_type": "course_enrollment", "in_app_enabled": False}]})

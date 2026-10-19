@@ -623,6 +623,13 @@ class QuizService:
             f"/quizzes/{quiz.id}", {"quiz_id": quiz.id, "attempt_id": attempt.id, "score": score, "passed": passed},
         )
 
+        from app.services.gamification_service import gamification_service
+        from app.services.personalization_service import personalization_service
+        personalization_service.record_quiz_attempt(db, current_user.id, attempt.answers)
+        gamification_service.touch_activity(db, current_user.id, "learning", quizzes=1)
+        if passed:
+            gamification_service.record(db, current_user.id, "quiz_passed", quiz.id, "quiz", score=score)
+
         return QuizAttemptResponse(
             id=attempt.id,
             quiz_id=attempt.quiz_id,

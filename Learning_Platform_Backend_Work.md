@@ -425,9 +425,14 @@ The audit reported that a Super Admin request for course progress without a targ
 - [x] Certificate issuance and verification (auto-issue, public verify, PDF, revoke)
 - [x] Course reviews and ratings (incl. moderation and rating summary)
 - [x] Organization/university management (members, course linking, stats)
-- [ ] Secure coding practice and auto-grading, if required
+- [x] Coding workspace: exercises, hidden test cases, Run/Submit, auto-grading, drafts, pluggable runner (Judge0 / local dev). A production runner (Judge0) still has to be hosted and configured
 - [x] Course discussions (Q&A) and content reports with moderation
 - [x] Role-based permission audit (draft course structure and lecture URLs were readable by any logged-in user; fixed; `tests/test_permissions.py` pins the PUBLIC allow-list and the admin-only routes)
+- [x] Notes, bookmarks, wishlist
+- [x] File uploads (Supabase Storage / local) with signed links for private files; SMTP over STARTTLS or SSL
+- [x] Gamification (points, levels, streaks, badges, leaderboard)
+- [x] AI tutor with pluggable provider (needs ANTHROPIC_API_KEY to go live)
+- [x] Personalization: topics and mastery, goals, learning paths, recommendations
 - [ ] Frontend API integration and end-to-end tests
 
 ---

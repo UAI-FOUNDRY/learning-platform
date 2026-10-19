@@ -37,6 +37,7 @@ PUBLIC = {
     ("GET", f"{API}/reviews/courses/{{course_id}}"),
     ("GET", f"{API}/reviews/courses/{{course_id}}/summary"),
     ("GET", f"{API}/settings/public"),
+    ("GET", f"{API}/files/{{kind}}/{{path:path}}"),   # private files are protected by a signed link
     ("GET", f"{API}/courses"),
     ("GET", f"{API}/courses/{{course_id}}"),
 }
@@ -82,6 +83,8 @@ ADMIN_ONLY = [
     ("GET", "/admin/overview"),
     ("GET", "/admin/audit-logs"),
     ("GET", "/admin/login-history"),
+    ("GET", "/admin/system"),
+    ("POST", "/admin/email/test"),
     ("GET", "/settings"),
     ("PUT", "/settings"),
     ("GET", "/analytics/platform"),

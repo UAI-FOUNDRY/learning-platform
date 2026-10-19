@@ -1,7 +1,8 @@
 from typing import Optional
 from datetime import datetime
 from pydantic import field_validator
-from app.schemas.common import BaseSchema
+from app.schemas.common import BaseSchema, StorageUrl
+from app.services.storage_service import storage_service
 
 class LectureBase(BaseSchema):
     title: str
@@ -25,7 +26,7 @@ class LectureBase(BaseSchema):
     def validate_content_url(cls, v: Optional[str]) -> Optional[str]:
         if v is not None:
             cleaned = v.strip()
-            return cleaned or None
+            return storage_service.normalize_incoming(cleaned) or None
         return None
 
     @field_validator("duration")
@@ -69,7 +70,7 @@ class LectureUpdate(BaseSchema):
     def validate_content_url(cls, v: Optional[str]) -> Optional[str]:
         if v is not None:
             cleaned = v.strip()
-            return cleaned or None
+            return storage_service.normalize_incoming(cleaned) or None
         return None
 
     @field_validator("duration")
@@ -90,7 +91,7 @@ class LectureResponse(BaseSchema):
     id: str
     section_id: str
     title: str
-    content_url: Optional[str] = None
+    content_url: StorageUrl = None
     duration: int = 0
     order_index: int
     is_preview: bool = False

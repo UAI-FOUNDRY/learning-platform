@@ -296,6 +296,9 @@ class QAService:
             raise HTTPException(status.HTTP_403_FORBIDDEN, "Only the course instructor or a Super Admin can highlight answers")
         a.is_highlighted = highlighted
         db.commit()
+        if highlighted and a.user_id and a.user_id != user.id:
+            from app.services.gamification_service import gamification_service
+            gamification_service.record(db, a.user_id, "answer_highlighted", a.id, "qa_answer")
         return self.get_question(db, q.id, user)
 
     def moderate_answer(self, db: Session, answer_id: str, new_status: str, user: User) -> dict:

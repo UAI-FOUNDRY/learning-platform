@@ -124,6 +124,8 @@ class CertificateService:
                     f"You earned a certificate for {cert.course_title or 'your course'}.",
                     "/certificates", {"certificate_id": cert.id, "course_id": cert.course_id},
                 )
+                from app.services.gamification_service import gamification_service
+                gamification_service.record(db, cert.user_id, "certificate_issued", cert.id, "certificate")
                 return cert
             except IntegrityError:
                 db.rollback()

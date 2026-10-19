@@ -1,6 +1,7 @@
 from datetime import datetime
 from typing import Optional, Any
-from pydantic import BaseModel, ConfigDict
+from typing import Annotated
+from pydantic import AfterValidator, BaseModel, ConfigDict
 
 class BaseSchema(BaseModel):
     """
@@ -44,3 +45,12 @@ class ErrorResponse(BaseSchema):
     """
     detail: Any
     error_type: Optional[str] = None
+
+
+def _resolve_storage_url(value: Optional[str]) -> Optional[str]:
+    from app.services.storage_service import storage_service
+    return storage_service.resolve(value)
+
+
+# A stored file reference (storage://...) shown to clients as a usable, possibly signed, URL.
+StorageUrl = Annotated[Optional[str], AfterValidator(_resolve_storage_url)]

@@ -1,6 +1,7 @@
 import os
 
 os.environ["EMAIL_BACKEND"] = "memory"  # emails are captured in email_service.outbox
+os.environ["STORAGE_BACKEND"] = "memory"  # uploaded files are kept in RAM
 
 import pytest
 from sqlalchemy import create_engine
@@ -64,4 +65,30 @@ def _legacy_tests_edit_published_courses(request):
     db = request.getfixturevalue("db_session")
     db.add(PlatformSetting(key="courses.reapproval_on_published_edit", value=False, category="courses"))
     db.commit()
+    yield
+
+
+@pytest.fixture(autouse=True)
+def _empty_file_storage():
+    """Each test starts with no uploaded files (STORAGE_BACKEND=memory)."""
+    from app.services.storage_service import storage_service
+    storage_service._memory.clear()
+    yield
+
+
+@pytest.fixture(autouse=True)
+def _coding_background_uses_test_session(request, monkeypatch):
+    """Coding runs are evaluated after the response; give that work the same in-memory test database."""
+    if "db_session" not in request.fixturenames:
+        yield
+        return
+    from contextlib import contextmanager
+    from app.services import coding_service as module
+    db = request.getfixturevalue("db_session")
+
+    @contextmanager
+    def shared_session():
+        yield db
+
+    monkeypatch.setattr(module, "background_session", shared_session)
     yield

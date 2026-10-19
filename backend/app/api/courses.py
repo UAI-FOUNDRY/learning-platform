@@ -7,12 +7,13 @@ from app.schemas.course import (
     CourseCreate,
     CourseUpdate,
     CourseResponse,
+    CourseApprovalLogResponse,
 )
 from app.schemas.common import MessageResponse
 from app.schemas.enrollment import EnrollmentResponse, EnrollmentWithUserResponse
 from app.services.course_service import course_service
 from app.services.enrollment_service import enrollment_service
-from app.api.deps import get_current_user, require_role
+from app.api.deps import get_optional_user, require_role
 
 router = APIRouter()
 
@@ -41,11 +42,11 @@ def list_courses(
     status: Optional[str] = Query(None, description="Filter courses by status (e.g. draft, published)"),
     search: Optional[str] = Query(None, description="Search courses by keyword in title or description"),
     db: Session = Depends(get_db),
-    current_user: User = Depends(get_current_user),
+    current_user: Optional[User] = Depends(get_optional_user),
 ):
     """
     Lists courses with pagination and optional filtering.
-    Accessible to all authenticated users (super_admin, instructor, learner).
+    **Public**: anyone can browse; visitors and learners only see published courses.
     """
     offset = (page - 1) * limit if page is not None else skip
     return course_service.list_courses(
@@ -64,11 +65,11 @@ def list_courses(
 def get_course(
     course_id: str,
     db: Session = Depends(get_db),
-    current_user: User = Depends(get_current_user),
+    current_user: Optional[User] = Depends(get_optional_user),
 ):
     """
     Retrieves a specific course by ID.
-    Accessible to all authenticated users (super_admin, instructor, learner).
+    **Public** for published courses; other statuses need a Super Admin/Instructor login.
     """
     return course_service.get_course(db, course_id, current_user)
 
@@ -112,6 +113,29 @@ def submit_course(
     Accessible to Super Admin and course owner Instructor.
     """
     return course_service.submit_course_for_approval(db, course_id, current_user)
+
+
+@router.get("/{course_id}/approval-history", response_model=List[CourseApprovalLogResponse])
+def course_approval_history(
+    course_id: str,
+    db: Session = Depends(get_db),
+    current_user: User = Depends(require_role("super_admin", "instructor")),
+):
+    """Every submit / approve / changes-requested / reject / reopen decision on this course."""
+    return course_service.approval_history(db, course_id, current_user)
+
+
+@router.post("/{course_id}/reopen", response_model=CourseResponse)
+def reopen_course(
+    course_id: str,
+    db: Session = Depends(get_db),
+    current_user: User = Depends(require_role("super_admin", "instructor")),
+):
+    """
+    Moves a published course back to 'draft' so it can be edited and re-reviewed.
+    The course leaves the public catalog; learners already enrolled keep access.
+    """
+    return course_service.reopen_course(db, course_id, current_user)
 
 
 @router.post("/{course_id}/enroll", response_model=EnrollmentResponse, status_code=status.HTTP_201_CREATED)

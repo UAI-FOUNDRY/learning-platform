@@ -1,3 +1,5 @@
+import logging
+
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 from app.config.settings import settings
@@ -20,6 +22,12 @@ from app.api.lectures import router as lectures_router
 from app.database.connection import get_database_status
 from app.middleware.error_handler import register_error_handlers
 
+settings.assert_safe()  # production/staging: stop here if SECRET_KEY / CORS are still development defaults
+if settings.SECRET_KEY == settings.PLACEHOLDER_SECRET:
+    logging.getLogger(__name__).warning(
+        "SECRET_KEY is the built-in placeholder. Fine for local development, never for a real server."
+    )
+
 app = FastAPI(
     title="Learning Platform API",
     description="Modular backend API for the Learning Platform",
@@ -31,8 +39,8 @@ register_error_handlers(app)
 
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=["*"],
-    allow_credentials=True,
+    allow_origins=settings.cors_origins_list,
+    allow_credentials="*" not in settings.cors_origins_list,  # browsers reject "*" together with credentials
     allow_methods=["*"],
     allow_headers=["*"],
 )

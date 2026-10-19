@@ -146,6 +146,35 @@ class EnrollmentService:
             .all()
         )
 
+    def list_enrollments(
+        self,
+        db: Session,
+        current_user: User,
+        course_id: Optional[str] = None,
+        user_id: Optional[str] = None,
+        status_filter: Optional[str] = None,
+        skip: int = 0,
+        limit: int = 50,
+    ) -> List[Enrollment]:
+        """All enrollments: Super Admin sees everything, an instructor only their own courses."""
+        if current_user.role not in ("super_admin", "instructor"):
+            raise HTTPException(
+                status_code=status.HTTP_403_FORBIDDEN,
+                detail="Only Super Admins and Instructors can list enrollments",
+            )
+        query = db.query(Enrollment)
+        if current_user.role == "instructor":
+            query = query.join(Course, Course.id == Enrollment.course_id).filter(
+                Course.instructor_id == current_user.id
+            )
+        if course_id:
+            query = query.filter(Enrollment.course_id == course_id.strip())
+        if user_id:
+            query = query.filter(Enrollment.user_id == user_id.strip())
+        if status_filter:
+            query = query.filter(func.upper(Enrollment.status) == status_filter.strip().upper())
+        return query.order_by(Enrollment.enrolled_at.desc()).offset(skip).limit(limit).all()
+
     def get_enrollment_by_id(self, db: Session, enrollment_id: str, current_user: User) -> Enrollment:
         enrollment = db.query(Enrollment).filter(Enrollment.id == enrollment_id).first()
         if not enrollment:

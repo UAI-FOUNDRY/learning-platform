@@ -7,6 +7,18 @@ from sqlalchemy.exc import SQLAlchemyError
 
 logger = logging.getLogger(__name__)
 
+
+def _validation_message(errors) -> str:
+    """'email: value is not a valid email address; password: Field required' (readable for UIs)."""
+    parts = []
+    for err in errors:
+        loc = [str(p) for p in err.get("loc", ()) if p not in ("body", "query", "path")]
+        msg = err.get("msg", "Invalid value")
+        if msg.startswith("Value error, "):
+            msg = msg[len("Value error, "):]
+        parts.append(f"{'.'.join(loc)}: {msg}" if loc else msg)
+    return "; ".join(parts) or "Invalid request"
+
 async def http_exception_handler(request: Request, exc: HTTPException) -> JSONResponse:
     """
     Handles standard HTTP exceptions (401, 403, 404, 400, etc.).
@@ -15,6 +27,7 @@ async def http_exception_handler(request: Request, exc: HTTPException) -> JSONRe
         status_code=exc.status_code,
         content={
             "detail": exc.detail,
+            "message": exc.detail if isinstance(exc.detail, str) else "Request failed",
             "error_type": "http_error"
         },
         headers=exc.headers,
@@ -28,6 +41,7 @@ async def validation_exception_handler(request: Request, exc: RequestValidationE
         status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
         content={
             "detail": jsonable_encoder(exc.errors()),
+            "message": _validation_message(exc.errors()),
             "error_type": "validation_error"
         }
     )
@@ -41,6 +55,7 @@ async def sqlalchemy_exception_handler(request: Request, exc: SQLAlchemyError) -
         status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
         content={
             "detail": "A database error occurred. Please try again later.",
+            "message": "A database error occurred. Please try again later.",
             "error_type": "database_error"
         }
     )
@@ -54,6 +69,7 @@ async def global_exception_handler(request: Request, exc: Exception) -> JSONResp
         status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
         content={
             "detail": "An unexpected internal server error occurred.",
+            "message": "An unexpected internal server error occurred.",
             "error_type": "internal_server_error"
         }
     )

@@ -382,7 +382,7 @@ A unique constraint on `(enrollment_id, lecture_id)` is needed to prevent duplic
 
 ### Error response mismatch
 
-The audit reported that backend errors use a `detail` field while the frontend API client checks `message`. This can make the UI display generic errors. Agree on one response format during integration.
+The audit reported that backend errors use a `detail` field while the frontend API client checks `message`. This can make the UI display generic errors. **Fixed:** every error now returns both `message` (readable) and `detail`.
 
 ### Super Admin progress queries
 
@@ -404,18 +404,24 @@ The audit reported that a Super Admin request for course progress without a targ
 - [x] Quiz management and attempts
 - [x] Assignment management and grading
 - [x] Learning progress tracking
-- [x] Full automated test suite passed: 336 tests
+- [x] Full automated test suite passed
+- [x] Re-review of edited published courses (reopen flow), approval history, `published_at`
+- [x] Public course catalog (no login)
+- [x] Quiz answers, assignment feedback/grading, progress position/`completed_at`, enrollment resume point are recorded
+- [x] Errors carry `message` (frontend `api.js` updated)
+- [x] Refresh tokens, logout, password reset/change, email verification, login history, lockout
+- [x] CORS allow-list, production SECRET_KEY guard, Dockerfiles for compose
 
 ### Remaining or requiring verification
 
 - [ ] Live Supabase connectivity and real database read/write tests
 - [x] Progress uniqueness constraint and migration (Alembic revision 0002)
-- [ ] Complete global enrollment listing for Super Admin
-- [ ] Super Admin analytics
+- [x] Global enrollment listing (Super Admin all, Instructor own courses) and `/admin/overview`
+- [ ] Super Admin analytics (charts over time; the `/admin/overview` totals exist)
 - [ ] Instructor analytics
-- [ ] Certificate issuance and verification
-- [ ] Course reviews and ratings
-- [ ] Organization/university management, if required
+- [x] Certificate issuance and verification (auto-issue, public verify, PDF, revoke)
+- [x] Course reviews and ratings (incl. moderation and rating summary)
+- [x] Organization/university management (members, course linking, stats)
 - [ ] Secure coding practice and auto-grading, if required
 - [ ] Course discussions, if required
 - [ ] Final role-based permission audit

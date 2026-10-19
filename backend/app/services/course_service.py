@@ -11,6 +11,7 @@ from app.models.certificate import Certificate
 from app.models.section import Section
 from app.models.lecture import Lecture
 from app.schemas.course import CourseCreate, CourseUpdate, CourseStatus
+from app.services import course_policy
 
 class CourseService:
     def get_by_id(self, db: Session, course_id: str) -> Optional[Course]:
@@ -26,7 +27,7 @@ class CourseService:
                 detail="Course not found"
             )
 
-        if current_user and current_user.role == "learner":
+        if current_user is None or current_user.role == "learner":
             if course.status.lower() != CourseStatus.PUBLISHED:
                 raise HTTPException(
                     status_code=status.HTTP_404_NOT_FOUND,
@@ -55,8 +56,8 @@ class CourseService:
         if instructor_id:
             query = query.filter(Course.instructor_id == instructor_id.strip())
 
-        if current_user and current_user.role == "learner":
-            # Learners can only see published courses in the public catalog
+        if current_user is None or current_user.role == "learner":
+            # Anonymous visitors and learners only see published courses in the catalog
             query = query.filter(func.lower(Course.status) == CourseStatus.PUBLISHED)
         elif status_filter:
             query = query.filter(func.lower(Course.status) == status_filter.strip().lower())
@@ -71,7 +72,7 @@ class CourseService:
             )
 
         courses = query.order_by(Course.created_at.desc()).offset(skip).limit(limit).all()
-        if current_user and current_user.role == "learner":
+        if current_user is None or current_user.role == "learner":
             for c in courses:
                 c.review_feedback = None
         return courses
@@ -182,6 +183,8 @@ class CourseService:
                 detail="Insufficient permissions to update course"
             )
 
+        course_policy.apply_published_edit_policy(db, course, current_user)
+
         # Category validation if updating category
         if course_in.category_id is not None:
             category = db.query(Category).filter(Category.id == course_in.category_id.strip()).first()
@@ -213,6 +216,12 @@ class CourseService:
         except Exception:
             db.rollback()
             raise
+
+    def reopen_course(self, db: Session, course_id: str, current_user: User) -> Course:
+        course = self.get_by_id(db, course_id)
+        if not course:
+            raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Course not found")
+        return course_policy.reopen_for_editing(db, course, current_user)
 
     def delete_course(self, db: Session, course_id: str, current_user: User) -> None:
         course = self.get_course(db, course_id, current_user)
@@ -315,6 +324,7 @@ class CourseService:
                 detail="Cannot submit course: course must contain at least one section and at least one lecture"
             )
 
+        course_policy.log_approval(db, course, current_user, "submitted", current_status, CourseStatus.PENDING_REVIEW)
         course.status = CourseStatus.PENDING_REVIEW
         course.submitted_at = datetime.utcnow()
         course.review_feedback = None
@@ -380,7 +390,10 @@ class CourseService:
                 detail=f"Cannot approve course: course must be in 'pending_review' status, but is '{course.status}'"
             )
 
+        course_policy.log_approval(db, course, current_user, "approved", course.status, CourseStatus.PUBLISHED)
         course.status = CourseStatus.PUBLISHED
+        if course.published_at is None:
+            course.published_at = datetime.utcnow()
         course.reviewer_id = current_user.id
         course.reviewed_at = datetime.utcnow()
         course.review_feedback = None
@@ -428,6 +441,7 @@ class CourseService:
                 detail="Feedback cannot exceed 2000 characters"
             )
 
+        course_policy.log_approval(db, course, current_user, "changes_requested", course.status, CourseStatus.CHANGES_REQUESTED, cleaned_feedback)
         course.status = CourseStatus.CHANGES_REQUESTED
         course.review_feedback = cleaned_feedback
         course.reviewer_id = current_user.id
@@ -476,6 +490,7 @@ class CourseService:
                 detail="Rejection reason cannot exceed 2000 characters"
             )
 
+        course_policy.log_approval(db, course, current_user, "rejected", course.status, CourseStatus.REJECTED, cleaned_reason)
         course.status = CourseStatus.REJECTED
         course.review_feedback = cleaned_reason
         course.reviewer_id = current_user.id
@@ -491,5 +506,28 @@ class CourseService:
         except Exception:
             db.rollback()
             raise
+
+    def approval_history(self, db: Session, course_id: str, current_user: User):
+        """Review history of a course: Super Admin sees any, an instructor only their own."""
+        from app.models.course_approval_log import CourseApprovalLog
+        course = self.get_by_id(db, course_id)
+        if not course or (current_user.role == "instructor" and course.instructor_id != current_user.id):
+            raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Course not found")
+        rows = (
+            db.query(CourseApprovalLog)
+            .filter(CourseApprovalLog.course_id == course.id)
+            .order_by(CourseApprovalLog.created_at.asc())
+            .all()
+        )
+        return [
+            {
+                "id": r.id, "course_id": r.course_id, "actor_id": r.actor_id,
+                "actor_name": r.actor.full_name if r.actor else None,
+                "action": r.action, "from_status": r.from_status, "to_status": r.to_status,
+                "comment": r.comment, "created_at": r.created_at,
+            }
+            for r in rows
+        ]
+
 
 course_service = CourseService()

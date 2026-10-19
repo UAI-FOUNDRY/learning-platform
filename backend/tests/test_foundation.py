@@ -33,7 +33,7 @@ def test_1_application_starts_successfully(client):
     assert "/api/v1/auth/" in route_paths
     assert "/api/v1/users/" in route_paths
     assert "/api/v1/courses/" in route_paths
-    assert "/api/v1/admin/" in route_paths
+    assert "/api/v1/admin/overview" in route_paths
 
 def test_2_health_endpoint_works(client):
     """Verify health endpoint responds with safe status without leaking credentials."""

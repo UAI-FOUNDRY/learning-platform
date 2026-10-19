@@ -205,6 +205,10 @@ class ProgressService:
             except Exception:
                 db.rollback()
                 raise
+            if enrollment.status == "COMPLETED":
+                # Imported here to avoid a circular import; never raises.
+                from app.services.certificate_service import certificate_service
+                certificate_service.auto_issue_if_enabled(db, enrollment)
 
     # ---------------------------------------------------------
     # Public Service API
@@ -232,12 +236,15 @@ class ProgressService:
         db: Session,
         lecture_id: str,
         current_user: User,
-        is_completed: bool = True,
+        is_completed: Optional[bool] = None,
+        last_position_seconds: Optional[int] = None,
     ) -> ProgressResponse:
         """
         Idempotently updates progress for a lecture.
         Only learners may modify their own progress.
-        Verifies enrollment, course hierarchy, and updates enrollment completion status.
+        `is_completed=None` means "don't change completion" when a playback position is sent,
+        and "mark completed" when nothing else is sent (backwards compatible default).
+        Also records completed_at, the resume position and the enrollment's last lecture.
         """
         if current_user.role != "learner":
             raise HTTPException(
@@ -248,56 +255,51 @@ class ProgressService:
         lecture, section, course = self._get_lecture_hierarchy(db, lecture_id)
         enrollment = self._get_active_learner_enrollment(db, current_user.id, course.id)
 
-        # Look for existing progress record for this enrollment and lecture
-        progress = (
-            db.query(Progress)
-            .filter(
-                Progress.enrollment_id == enrollment.id,
-                Progress.lecture_id == lecture.id,
-            )
-            .first()
-        )
+        if is_completed is None and last_position_seconds is None:
+            is_completed = True
 
-        if progress:
-            if progress.is_completed != is_completed:
-                progress.is_completed = is_completed
-                progress.updated_at = datetime.utcnow()
-                try:
-                    db.commit()
-                    db.refresh(progress)
-                except Exception:
-                    db.rollback()
-                    raise
-        else:
-            progress = Progress(
-                enrollment_id=enrollment.id,
-                lecture_id=lecture.id,
-                is_completed=is_completed,
-                updated_at=datetime.utcnow(),
+        def find():
+            return (
+                db.query(Progress)
+                .filter(Progress.enrollment_id == enrollment.id, Progress.lecture_id == lecture.id)
+                .first()
             )
-            db.add(progress)
-            try:
+
+        def apply(row: Progress) -> None:
+            now = datetime.utcnow()
+            if is_completed is not None and row.is_completed != is_completed:
+                row.is_completed = is_completed
+                row.completed_at = now if is_completed else None
+            if last_position_seconds is not None:
+                row.last_position_seconds = last_position_seconds
+            row.updated_at = now
+            enrollment.last_lecture_id = lecture.id
+            enrollment.last_accessed_at = now
+
+        progress = find()
+        try:
+            if progress:
+                apply(progress)
                 db.commit()
                 db.refresh(progress)
-            except IntegrityError:
-                db.rollback()
-                # Handle concurrent insert race condition gracefully
-                progress = (
-                    db.query(Progress)
-                    .filter(
-                        Progress.enrollment_id == enrollment.id,
-                        Progress.lecture_id == lecture.id,
-                    )
-                    .first()
-                )
-                if progress:
-                    if progress.is_completed != is_completed:
-                        progress.is_completed = is_completed
-                        progress.updated_at = datetime.utcnow()
-                        db.commit()
-                        db.refresh(progress)
-                else:
-                    raise
+            else:
+                progress = Progress(enrollment_id=enrollment.id, lecture_id=lecture.id, is_completed=False)
+                apply(progress)
+                db.add(progress)
+                db.commit()
+                db.refresh(progress)
+        except IntegrityError:
+            db.rollback()
+            # Handle concurrent insert race condition gracefully
+            progress = find()
+            if not progress:
+                raise
+            apply(progress)
+            db.commit()
+            db.refresh(progress)
+        except Exception:
+            db.rollback()
+            raise
 
         # Check course completion and synchronize enrollment status
         _, _, _, _, _, is_course_completed = self._calculate_progress_data(db, course.id, enrollment)
@@ -308,6 +310,8 @@ class ProgressService:
             enrollment_id=progress.enrollment_id,
             lecture_id=progress.lecture_id,
             is_completed=progress.is_completed,
+            last_position_seconds=progress.last_position_seconds or 0,
+            completed_at=progress.completed_at,
             updated_at=progress.updated_at,
         )
 

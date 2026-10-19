@@ -65,12 +65,12 @@ def update_lecture_progress_single(
     Updates progress for a specific lecture for the authenticated learner.
     Payload is optional (defaults to marking the lecture as completed).
     """
-    is_completed = progress_in.is_completed if progress_in is not None else True
     return progress_service.update_lecture_progress(
         db=db,
         lecture_id=lecture_id,
         current_user=current_user,
-        is_completed=is_completed,
+        is_completed=progress_in.is_completed if progress_in is not None else None,
+        last_position_seconds=progress_in.last_position_seconds if progress_in is not None else None,
     )
 
 

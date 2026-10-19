@@ -1,3 +1,7 @@
+import os
+
+os.environ["EMAIL_BACKEND"] = "memory"  # emails are captured in email_service.outbox
+
 import pytest
 from sqlalchemy import create_engine
 from sqlalchemy.orm import sessionmaker
@@ -47,3 +51,17 @@ def client(db_session):
     with TestClient(app) as test_client:
         yield test_client
     app.dependency_overrides.clear()
+
+
+@pytest.fixture(autouse=True)
+def _legacy_tests_edit_published_courses(request):
+    """Older suites build content on already-published courses, so they run with the
+    "re-review on published edit" rule off. tests/test_course_lifecycle.py exercises the rule itself."""
+    if "db_session" not in request.fixturenames or request.module.__name__.endswith("test_course_lifecycle"):
+        yield
+        return
+    from app.models.platform_setting import PlatformSetting
+    db = request.getfixturevalue("db_session")
+    db.add(PlatformSetting(key="courses.reapproval_on_published_edit", value=False, category="courses"))
+    db.commit()
+    yield

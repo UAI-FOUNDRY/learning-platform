@@ -9,13 +9,18 @@ from app.schemas.course import (
     CourseRejectRequest,
 )
 from app.services.course_service import course_service
+from app.services.admin_service import admin_service
 from app.api.deps import require_role
 
 router = APIRouter()
 
-@router.get("/")
-def get_admin_placeholder():
-    return {"module": "admin", "description": "Platform administration and approval endpoints"}
+@router.get("/overview")
+def admin_overview(
+    db: Session = Depends(get_db),
+    current_user: User = Depends(require_role("super_admin")),
+):
+    """Counts for the Super Admin dashboard: users, courses, enrollments, certificates, reviews, organizations."""
+    return admin_service.overview(db)
 
 
 @router.get("/courses/pending", response_model=List[CourseResponse])

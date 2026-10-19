@@ -23,7 +23,16 @@ export async function apiClient(endpoint, { body, ...customConfig } = {}) {
   const response = await fetch(`${BASE_URL}${endpoint}`, config);
   if (!response.ok) {
     const errorData = await response.json().catch(() => ({}));
-    throw new Error(errorData.message || 'API request failed');
+    // The API sends { message, detail, error_type }; "message" is always readable text.
+    const error = new Error(
+      errorData.message ||
+        (typeof errorData.detail === 'string' ? errorData.detail : '') ||
+        'API request failed'
+    );
+    error.status = response.status;
+    error.data = errorData;
+    throw error;
   }
+  if (response.status === 204) return null;
   return response.json();
 }

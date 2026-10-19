@@ -3,10 +3,12 @@ from typing import Optional, List, Tuple, Union, Dict, Any
 from sqlalchemy.orm import Session
 from sqlalchemy import func
 from fastapi import HTTPException, status
+from app.services import course_policy
+from sqlalchemy.orm import object_session
 
 from app.models.quiz import Quiz
 from app.models.question import Question
-from app.models.quiz_attempt import QuizAttempt
+from app.models.quiz_attempt import QuizAttempt, QuizAttemptAnswer
 from app.models.section import Section
 from app.models.course import Course
 from app.models.enrollment import Enrollment
@@ -107,7 +109,7 @@ class QuizService:
             )
         return quiz, section, course
 
-    def _check_author_permission(self, course: Course, current_user: User) -> None:
+    def _check_author_permission(self, course: Course, current_user: User, content_edit: bool = True) -> None:
         """
         Enforces authoring access control:
         - Super Admin: global access
@@ -125,11 +127,13 @@ class QuizService:
                     status_code=status.HTTP_403_FORBIDDEN,
                     detail="Instructors can only manage quizzes in their own courses"
                 )
-            if course.status.lower() == "pending_review":
+            if content_edit and course.status.lower() == "pending_review":
                 raise HTTPException(
                     status_code=status.HTTP_409_CONFLICT,
                     detail="Cannot modify quiz content while course is pending review"
                 )
+            if content_edit:
+                course_policy.apply_published_edit_policy(object_session(course), course, current_user)
         elif current_user.role != "super_admin":
             raise HTTPException(
                 status_code=status.HTTP_403_FORBIDDEN,
@@ -143,7 +147,7 @@ class QuizService:
         - Learner must be actively enrolled
         """
         if current_user.role == "learner":
-            if course.status.lower() != "published":
+            if not course_policy.is_live_for_enrolled(course):
                 raise HTTPException(
                     status_code=status.HTTP_403_FORBIDDEN,
                     detail="Cannot access quizzes for an unpublished course"
@@ -500,7 +504,7 @@ class QuizService:
 
         quiz, _, course = self._get_quiz_section_and_course(db, quiz_id)
 
-        if course.status.lower() != "published":
+        if not course_policy.is_live_for_enrolled(course):
             raise HTTPException(
                 status_code=status.HTTP_400_BAD_REQUEST,
                 detail="Cannot attempt quiz for an unpublished course"
@@ -571,13 +575,36 @@ class QuizService:
         passed = score >= quiz.passing_score
 
         # Persist attempt record
+        previous_attempts = (
+            db.query(QuizAttempt)
+            .filter(QuizAttempt.quiz_id == quiz.id, QuizAttempt.user_id == current_user.id)
+            .count()
+        )
+        now = datetime.utcnow()
         attempt = QuizAttempt(
             quiz_id=quiz.id,
             user_id=current_user.id,
             score=score,
             passed=passed,
-            attempted_at=datetime.utcnow()
+            status="submitted",
+            attempt_number=previous_attempts + 1,
+            correct_count=correct_count,
+            total_questions=total_questions,
+            started_at=now,
+            attempted_at=now,
         )
+        # One row per question: powers answer review and per-question statistics
+        for q in questions:
+            selected = submitted_answers_map.get(q.id)
+            is_correct = selected is not None and _is_answer_correct(selected, q.correct_option, q.options)
+            attempt.answers.append(
+                QuizAttemptAnswer(
+                    question_id=q.id,
+                    selected_options=[selected] if selected is not None else [],
+                    is_correct=bool(is_correct),
+                    points_awarded=(q.points or 1) if is_correct else 0,
+                )
+            )
 
         try:
             db.add(attempt)

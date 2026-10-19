@@ -2,6 +2,7 @@ from typing import Optional, List
 from sqlalchemy.orm import Session
 from sqlalchemy import func
 from fastapi import HTTPException, status
+from app.services import course_policy
 from app.models.lecture import Lecture
 from app.models.section import Section
 from app.models.course import Course
@@ -82,6 +83,8 @@ class LectureService:
                     status_code=status.HTTP_409_CONFLICT,
                     detail="Cannot modify lectures while course is pending review"
                 )
+            if course:
+                course_policy.apply_published_edit_policy(db, course, current_user)
         elif current_user.role != "super_admin":
             raise HTTPException(
                 status_code=status.HTTP_403_FORBIDDEN,
@@ -146,6 +149,8 @@ class LectureService:
                     status_code=status.HTTP_409_CONFLICT,
                     detail="Cannot modify lectures while course is pending review"
                 )
+            if course:
+                course_policy.apply_published_edit_policy(db, course, current_user)
         elif current_user.role != "super_admin":
             raise HTTPException(
                 status_code=status.HTTP_403_FORBIDDEN,
@@ -201,6 +206,8 @@ class LectureService:
                     status_code=status.HTTP_409_CONFLICT,
                     detail="Cannot modify lectures while course is pending review"
                 )
+            if course:
+                course_policy.apply_published_edit_policy(db, course, current_user)
         elif current_user.role != "super_admin":
             raise HTTPException(
                 status_code=status.HTTP_403_FORBIDDEN,

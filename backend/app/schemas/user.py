@@ -69,6 +69,8 @@ class UserResponse(UserBase):
 class Token(BaseSchema):
     access_token: str
     token_type: str = "bearer"
+    refresh_token: Optional[str] = None
+    expires_in: Optional[int] = None  # access token lifetime in seconds
 
 TokenResponse = Token
 
@@ -147,3 +149,36 @@ class UserListResponse(BaseSchema):
     def items(self) -> List[UserResponse]:
         return self.users
 
+
+
+class RefreshRequest(BaseSchema):
+    refresh_token: str
+
+
+class LogoutRequest(BaseSchema):
+    refresh_token: Optional[str] = None
+
+
+class ForgotPasswordRequest(BaseSchema):
+    email: str
+
+    @field_validator("email")
+    @classmethod
+    def validate_email(cls, v: str) -> str:
+        if not is_valid_email(v):
+            raise ValueError("Invalid email address format")
+        return v.lower().strip()
+
+
+class ResetPasswordRequest(BaseSchema):
+    token: str
+    new_password: str
+
+
+class ChangePasswordRequest(BaseSchema):
+    current_password: str
+    new_password: str
+
+
+class VerifyEmailRequest(BaseSchema):
+    token: str

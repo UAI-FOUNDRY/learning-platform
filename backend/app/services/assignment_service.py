@@ -2,6 +2,8 @@ from datetime import datetime, timezone
 from typing import Optional, List, Tuple, Union, Any
 from sqlalchemy.orm import Session
 from fastapi import HTTPException, status
+from app.services import course_policy
+from sqlalchemy.orm import object_session
 
 from app.models.assignment import Assignment
 from app.models.submission import Submission
@@ -88,7 +90,7 @@ class AssignmentService:
             return deadline.astimezone(timezone.utc)
         return deadline.replace(tzinfo=timezone.utc)
 
-    def _check_author_permission(self, course: Course, current_user: User) -> None:
+    def _check_author_permission(self, course: Course, current_user: User, content_edit: bool = True) -> None:
         """
         Enforces authoring access control:
         - Super Admin: global access
@@ -106,11 +108,13 @@ class AssignmentService:
                     status_code=status.HTTP_403_FORBIDDEN,
                     detail="Instructors can only manage assignments in their own courses"
                 )
-            if course.status and course.status.lower() == "pending_review":
+            if content_edit and course.status and course.status.lower() == "pending_review":
                 raise HTTPException(
                     status_code=status.HTTP_409_CONFLICT,
                     detail="Cannot modify assignment content while course is pending review"
                 )
+            if content_edit:
+                course_policy.apply_published_edit_policy(object_session(course), course, current_user)
         elif current_user.role != "super_admin":
             raise HTTPException(
                 status_code=status.HTTP_403_FORBIDDEN,
@@ -124,7 +128,7 @@ class AssignmentService:
         - Learner must be actively enrolled
         """
         if current_user.role == "learner":
-            if not course.status or course.status.lower() != "published":
+            if not course_policy.is_live_for_enrolled(course):
                 raise HTTPException(
                     status_code=status.HTTP_403_FORBIDDEN,
                     detail="Cannot access assignments for an unpublished course"
@@ -371,6 +375,11 @@ class AssignmentService:
                 existing_sub.submission_url = cleaned_url
                 existing_sub.submitted_at = datetime.utcnow()
                 existing_sub.grade = None  # Reset grade upon resubmission
+                existing_sub.feedback = None
+                existing_sub.graded_by = None
+                existing_sub.graded_at = None
+                existing_sub.status = "submitted"
+                existing_sub.resubmission_count = (existing_sub.resubmission_count or 0) + 1
                 db.commit()
                 db.refresh(existing_sub)
                 return existing_sub
@@ -380,6 +389,8 @@ class AssignmentService:
                     user_id=current_user.id,
                     submission_url=cleaned_url,
                     grade=None,
+                    status="submitted",
+                    resubmission_count=0,
                     submitted_at=datetime.utcnow()
                 )
                 db.add(new_sub)
@@ -517,7 +528,7 @@ class AssignmentService:
             )
 
         assignment, _, course = self._get_assignment_section_and_course(db, submission.assignment_id)
-        self._check_author_permission(course, current_user)
+        self._check_author_permission(course, current_user, content_edit=False)
 
         cleaned_grade = grade_in.grade.strip()
         if not cleaned_grade:
@@ -532,6 +543,10 @@ class AssignmentService:
             )
 
         submission.grade = cleaned_grade
+        submission.feedback = grade_in.feedback
+        submission.status = "graded"
+        submission.graded_by = current_user.id
+        submission.graded_at = datetime.utcnow()
 
         try:
             db.commit()

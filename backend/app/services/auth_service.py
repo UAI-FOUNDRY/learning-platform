@@ -5,6 +5,7 @@ from fastapi import HTTPException, status
 from app.models.user import User
 from app.schemas.user import UserRegister, TokenResponse
 from app.utils.security import verify_password, get_password_hash, create_access_token
+from app.services.platform_settings_service import get_setting
 
 class AuthService:
     def get_user_by_email(self, db: Session, email: str) -> Optional[User]:
@@ -17,7 +18,20 @@ class AuthService:
             return None
         return db.query(User).filter(User.id == user_id).first()
 
+    def check_new_password(self, db: Session, password: str) -> None:
+        minimum = int(get_setting(db, "security.password_min_length", 8) or 8)
+        if len(password or "") < minimum:
+            raise HTTPException(
+                status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
+                detail=f"Password must be at least {minimum} characters long",
+            )
+
     def register_user(self, db: Session, user_in: UserRegister) -> User:
+        if not get_setting(db, "users.allow_public_registration", True):
+            raise HTTPException(
+                status_code=status.HTTP_403_FORBIDDEN,
+                detail="Public registration is currently disabled",
+            )
         clean_email = user_in.email.lower().strip()
         existing_user = self.get_user_by_email(db, clean_email)
         if existing_user:
@@ -36,6 +50,11 @@ class AuthService:
             raise HTTPException(
                 status_code=status.HTTP_400_BAD_REQUEST,
                 detail=f"Invalid role '{clean_role}'. Valid roles are: learner, instructor"
+            )
+        if clean_role == "instructor" and not get_setting(db, "users.allow_instructor_self_signup", True):
+            raise HTTPException(
+                status_code=status.HTTP_403_FORBIDDEN,
+                detail="Instructor accounts are created by an administrator",
             )
 
         hashed_password = get_password_hash(user_in.password)

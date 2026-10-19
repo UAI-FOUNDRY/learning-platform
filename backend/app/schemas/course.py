@@ -151,11 +151,13 @@ class CourseResponse(BaseSchema):
     description: Optional[str] = None
     instructor_id: Optional[str] = None
     category_id: Optional[str] = None
+    organization_id: Optional[str] = None
     status: str = "draft"
     reviewer_id: Optional[str] = None
     review_feedback: Optional[str] = None
     submitted_at: Optional[datetime] = None
     reviewed_at: Optional[datetime] = None
+    published_at: Optional[datetime] = None
     created_at: Optional[datetime] = None
     updated_at: Optional[datetime] = None
     instructor: Optional[CourseInstructorSummary] = None
@@ -168,6 +170,18 @@ class CourseResponse(BaseSchema):
         if v is None:
             return "draft"
         return str(v).lower()
+
+class CourseApprovalLogResponse(BaseSchema):
+    id: str
+    course_id: str
+    actor_id: Optional[str] = None
+    actor_name: Optional[str] = None
+    action: str
+    from_status: Optional[str] = None
+    to_status: str
+    comment: Optional[str] = None
+    created_at: Optional[datetime] = None
+
 
 class CourseListResponse(BaseSchema):
     courses: List[CourseResponse]

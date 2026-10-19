@@ -1,14 +1,14 @@
 from fastapi import Depends, HTTPException, status
 from fastapi.security import OAuth2PasswordBearer
 from sqlalchemy.orm import Session
-from typing import Callable, List
+from typing import Callable, List, Optional
 from app.database.session import get_db
 from app.utils.security import decode_access_token
 from app.services.auth_service import auth_service
 from app.models.user import User
 
 oauth2_scheme = OAuth2PasswordBearer(
-    tokenUrl="/api/v1/auth/login",
+    tokenUrl="/api/v1/auth/token",  # form-based login used by the /docs "Authorize" button
     auto_error=False
 )
 
@@ -62,3 +62,22 @@ def require_role(*allowed_roles: str) -> Callable[..., User]:
             )
         return current_user
     return role_checker
+
+
+def get_optional_user(
+    token: str = Depends(oauth2_scheme),
+    db: Session = Depends(get_db),
+) -> Optional[User]:
+    """Like get_current_user, but anonymous visitors get None instead of a 401.
+
+    A token that is present but invalid still returns None (treated as anonymous), so the
+    public catalog never breaks because of a stale token in the browser.
+    """
+    if not token:
+        return None
+    try:
+        return get_current_user(token=token, db=db)
+    except HTTPException as exc:
+        if exc.status_code == status.HTTP_403_FORBIDDEN:
+            raise  # suspended / inactive accounts are told so
+        return None

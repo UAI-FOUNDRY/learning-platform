@@ -43,11 +43,8 @@ def create_course(db, instructor_id, title="Enrollment Test Course", status="pub
 
 # 0. Placeholder router mounted check (preserved for backwards compatibility)
 def test_enrollments_router_mounted(client):
-    response = client.get("/api/v1/enrollments/")
-    assert response.status_code == 200
-    data = response.json()
-    assert data["module"] == "enrollments"
-    assert "description" in data
+    # the global list is staff-only now (it used to be an open placeholder)
+    assert client.get("/api/v1/enrollments/").status_code == 401
 
 # 1. Successful enrollment
 def test_1_learner_can_enroll_in_published_course(client, db_session):

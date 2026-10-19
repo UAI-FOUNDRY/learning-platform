@@ -113,6 +113,17 @@ class SubmissionCreate(SubmissionBase):
 
 class SubmissionGrade(BaseSchema):
     grade: str
+    feedback: Optional[str] = None
+
+    @field_validator("feedback")
+    @classmethod
+    def validate_feedback(cls, v: Optional[str]) -> Optional[str]:
+        if v is None:
+            return None
+        cleaned = v.strip()
+        if len(cleaned) > 5000:
+            raise ValueError("Feedback cannot exceed 5000 characters")
+        return cleaned or None
 
     @field_validator("grade")
     @classmethod
@@ -161,6 +172,10 @@ class SubmissionResponse(BaseSchema):
     user_id: str
     submission_url: Optional[str] = None
     grade: Optional[str] = None
+    status: str = "submitted"
+    feedback: Optional[str] = None
+    graded_at: Optional[datetime] = None
+    resubmission_count: int = 0
     submitted_at: Optional[datetime] = None
 
 

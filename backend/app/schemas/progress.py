@@ -37,7 +37,15 @@ class LectureProgressUpdate(BaseSchema):
     Schema for updating lecture progress (marking completed/incomplete).
     Defaults to marking completed (True).
     """
-    is_completed: bool = True
+    is_completed: Optional[bool] = None  # None + last_position_seconds = just save the position
+    last_position_seconds: Optional[int] = Field(None, ge=0, description="Seconds into the video, for resume")
+
+    @model_validator(mode="after")
+    def default_to_completed(self):
+        # An empty body means "completed"; a body with only a position just saves the position.
+        if self.is_completed is None and self.last_position_seconds is None:
+            self.is_completed = True
+        return self
 
 
 class ProgressResponse(BaseSchema):
@@ -49,6 +57,8 @@ class ProgressResponse(BaseSchema):
     enrollment_id: str
     lecture_id: str
     is_completed: bool = False
+    last_position_seconds: int = 0
+    completed_at: Optional[datetime] = None
     updated_at: Optional[datetime] = None
 
 

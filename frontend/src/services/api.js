@@ -37,9 +37,31 @@ export async function apiClient(endpoint, { body, params, ...customConfig } = {}
   const response = await fetch(url, config);
   if (!response.ok) {
     const errorData = await response.json().catch(() => ({}));
-    // FastAPI returns errors under "detail", while generic APIs may use "message"
-    const errorMessage = errorData.detail || errorData.message || `API request failed (${response.status})`;
-    throw new Error(typeof errorMessage === 'string' ? errorMessage : JSON.stringify(errorMessage));
+
+    let message = '';
+    if (typeof errorData.message === 'string' && errorData.message.trim()) {
+      message = errorData.message.trim();
+    } else if (typeof errorData.detail === 'string' && errorData.detail.trim()) {
+      message = errorData.detail.trim();
+    } else if (errorData.detail && typeof errorData.detail === 'object') {
+      try {
+        message = JSON.stringify(errorData.detail);
+      } catch {
+        message = `API request failed (${response.status})`;
+      }
+    } else {
+      message = `API request failed (${response.status})`;
+    }
+
+    const error = new Error(message);
+    error.status = response.status;
+    error.data = errorData;
+    throw error;
   }
+
+  if (response.status === 204) {
+    return null;
+  }
+
   return response.json();
 }

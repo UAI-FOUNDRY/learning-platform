@@ -1,12 +1,12 @@
 import React from 'react';
 
 export default function Button({ children, type = 'button', variant = 'primary', className = '', ...props }) {
-  const base = 'px-4 py-2 rounded-md font-medium transition-colors focus:outline-none';
+  const base = 'px-4 py-2 rounded-lg font-medium transition-colors focus:outline-none focus-visible:ring-2 focus-visible:ring-offset-2 disabled:opacity-50 disabled:cursor-not-allowed';
   const variants = {
-    primary: 'bg-blue-600 text-white hover:bg-blue-700',
-    secondary: 'bg-gray-200 text-gray-800 hover:bg-gray-300',
-    outline: 'border border-gray-300 text-gray-700 hover:bg-gray-50',
-    danger: 'bg-red-600 text-white hover:bg-red-700'
+    primary: 'bg-[#D92D2D] text-white hover:bg-[#B91C1C] focus-visible:ring-[#D92D2D] focus-visible:ring-offset-[#E2DCD4]',
+    secondary: 'bg-[#EAE3DA] text-[#211E1A] hover:bg-[#C8BBAA] border border-[#B6AA9A] focus-visible:ring-[#D92D2D]',
+    outline: 'border border-[#B6AA9A] text-[#211E1A] hover:bg-[#EAE3DA] focus-visible:ring-[#D92D2D]',
+    danger: 'bg-[#B91C1C] text-white hover:bg-[#991B1B] focus-visible:ring-[#B91C1C]'
   };
 
   return (

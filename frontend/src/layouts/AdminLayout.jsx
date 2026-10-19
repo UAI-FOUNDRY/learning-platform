@@ -1,25 +1,53 @@
-import React from 'react';
+import React, { useState, useEffect } from 'react';
 import { Outlet } from 'react-router-dom';
 import Navbar from '../components/layout/Navbar';
 import Sidebar from '../components/layout/Sidebar';
 
 export default function AdminLayout() {
-  const links = [
-    { to: '/admin/dashboard', label: 'Dashboard' },
-    { to: '/admin/approvals', label: 'Course Approvals' },
-    { to: '/admin/users', label: 'Users' },
-    { to: '/admin/instructors', label: 'Instructors' },
-    { to: '/admin/organizations', label: 'Organizations' },
-    { to: '/admin/categories', label: 'Categories' },
-    { to: '/admin/reports', label: 'Reports' }
-  ];
+  const [isSidebarCollapsed, setIsSidebarCollapsed] = useState(() => {
+    try {
+      return localStorage.getItem('learnspace_admin_sidebar_collapsed') === 'true';
+    } catch {
+      return false;
+    }
+  });
+
+  const [isMobileDrawerOpen, setIsMobileDrawerOpen] = useState(false);
+
+  useEffect(() => {
+    try {
+      localStorage.setItem('learnspace_admin_sidebar_collapsed', String(isSidebarCollapsed));
+    } catch {
+      // Ignore storage errors
+    }
+  }, [isSidebarCollapsed]);
+
+  const toggleSidebar = () => {
+    setIsSidebarCollapsed(prev => !prev);
+  };
 
   return (
-    <div className="min-h-screen flex flex-col bg-gray-50">
-      <Navbar />
-      <div className="flex flex-1">
-        <Sidebar links={links} />
-        <div className="flex-1 p-6">
+    <div className="min-h-screen flex bg-[#D6D0C8] text-[#211E1A] transition-colors duration-200 font-sans">
+      {/* Super Admin Collapsible & Drawer Sidebar */}
+      <Sidebar
+        isCollapsed={isSidebarCollapsed}
+        onToggleCollapse={toggleSidebar}
+        isMobileOpen={isMobileDrawerOpen}
+        onCloseMobile={() => setIsMobileDrawerOpen(false)}
+      />
+
+      {/* Main Content Area */}
+      <div className="flex-1 flex flex-col min-w-0 min-h-screen">
+        {/* Super Admin Top Bar */}
+        <Navbar
+          variant="admin"
+          isSidebarCollapsed={isSidebarCollapsed}
+          onToggleSidebar={toggleSidebar}
+          onOpenMobileSidebar={() => setIsMobileDrawerOpen(true)}
+        />
+
+        {/* Page Content Container */}
+        <div className="flex-1 p-4 sm:p-6 lg:p-8">
           <Outlet />
         </div>
       </div>

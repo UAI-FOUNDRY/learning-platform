@@ -28,6 +28,8 @@ client_id / client_secret empty, and click Authorize. Every 🔒 endpoint then s
 - **Settings**: `/api/v1/settings`: platform settings (public subset + Super Admin editing)
 - **Notifications / Announcements**: `/api/v1/notifications`, `/api/v1/announcements`
 - **Analytics**: `/api/v1/analytics`: platform, instructor and per-course reporting
+- **Q&A**: `/api/v1/qa`: course discussions (questions, threaded answers, upvotes, moderation)
+- **Reports**: `/api/v1/reports`: report content, Super Admin moderation queue
 
 ## Errors
 Every error is JSON: `{ "message": "...", "detail": ..., "error_type": "..." }`.
@@ -115,6 +117,39 @@ Notifications are created automatically: `welcome`, `course_enrollment`, `quiz_r
 
 Email is sent only if the setting `notifications.email_enabled` is on, the user has not turned
 email off for that type, and an email backend is configured. Announcements are in-app only.
+
+## Course Q&A (`/qa`)
+Open to learners enrolled in the course (active or completed), the course instructor and Super Admins.
+
+| Method & path | Who | What |
+|---|---|---|
+| `POST /qa/courses/{course_id}/questions` `{title, body, lecture_id?}` | participants | ask (author auto-follows, instructor is notified) |
+| `GET /qa/courses/{course_id}/questions?lecture_id=&resolved=&search=&mine=&sort=recent\|popular\|unanswered&status=` | participants | list (`status` hidden/removed: staff only) |
+| `GET /qa/my/questions` | logged in | my questions |
+| `GET /qa/questions/{id}` | participants | question + answers; replies nested; highlighted, instructor, most upvoted first |
+| `PUT /qa/questions/{id}`, `DELETE /qa/questions/{id}` | author (delete: also instructor, Super Admin) | edit / delete |
+| `POST /qa/questions/{id}/resolve` `{is_resolved}` | author, instructor, Super Admin | mark resolved |
+| `POST` / `DELETE /qa/questions/{id}/follow` | participants | follow for reply notifications |
+| `POST /qa/questions/{id}/answers` `{body, parent_answer_id?}` | participants | answer or reply (one level deep). Instructor answers are flagged `is_instructor_answer`. Returns the whole thread |
+| `PUT /qa/answers/{id}`, `DELETE /qa/answers/{id}` | author (delete: also instructor, Super Admin) | edit / delete |
+| `POST /qa/answers/{id}/upvote` | participants | toggle; not your own |
+| `POST /qa/answers/{id}/highlight` `{highlighted}` | instructor, Super Admin | pin the useful answer |
+| `PATCH /qa/questions/{id}/moderate`, `PATCH /qa/answers/{id}/moderate` `{status: visible\|hidden\|removed}` | instructor, Super Admin | moderate. Hidden content is invisible to learners |
+
+Replies notify the question author, followers and the parent answer's author (`qa_reply`).
+
+## Content reports (`/reports`)
+| Method & path | Who | What |
+|---|---|---|
+| `POST /reports` `{target_type, target_id, reason, details?}` | logged in | `target_type`: course, review, qa_question, qa_answer, user. `reason`: spam, abuse, inappropriate, copyright, other. Not your own content; no duplicate while open |
+| `GET /reports/my` | logged in | what I reported |
+| `GET /reports?status=&target_type=&reason=` | Super Admin | moderation queue with a preview of the content |
+| `GET /reports/{id}` | Super Admin | one report |
+| `PATCH /reports/{id}` `{status: reviewing\|resolved\|dismissed, resolution_note?, action: none\|hide\|remove\|restore}` | Super Admin | decide. `action` changes the reported review / question / answer; other open reports on the same content close with it |
+
+When a question, answer or review gets `content.auto_hide_report_threshold` open reports from different
+people (default 5) it is hidden automatically and logged as `content.auto_hidden`. `GET /admin/overview`
+includes `open_reports`.
 
 ## Analytics
 All three accept `days` (7-365, default 30) and return a `series` with one row per day.

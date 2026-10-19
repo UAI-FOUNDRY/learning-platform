@@ -4,7 +4,7 @@ from datetime import datetime, timedelta
 from sqlalchemy import func
 from sqlalchemy.orm import Session
 
-from app.models import Certificate, Course, Enrollment, Organization, Review, User
+from app.models import Certificate, ContentReport, Course, Enrollment, Organization, Review, User
 
 
 def _counts(db: Session, column) -> dict:
@@ -40,6 +40,7 @@ class AdminService:
                 "visible": db.query(func.count(Review.id)).filter(Review.status == "visible").scalar() or 0,
             },
             "organizations": db.query(func.count(Organization.id)).scalar() or 0,
+            "open_reports": db.query(func.count(ContentReport.id)).filter(ContentReport.status.in_(["open", "reviewing"])).scalar() or 0,
         }
 
 

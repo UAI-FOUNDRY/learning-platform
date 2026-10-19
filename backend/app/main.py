@@ -17,6 +17,8 @@ from app.api.certificates import router as certificates_router
 from app.api.reviews import router as reviews_router
 from app.api.admin import router as admin_router
 from app.api.settings import router as settings_router
+from app.api.qa import router as qa_router
+from app.api.reports import router as reports_router
 from app.api.analytics import router as analytics_router
 from app.api.notifications import router as notifications_router, announcements_router
 from app.api.sections import router as sections_router
@@ -79,4 +81,6 @@ app.include_router(settings_router, prefix="/api/v1/settings", tags=["Settings"]
 app.include_router(notifications_router, prefix="/api/v1/notifications", tags=["Notifications"])
 app.include_router(announcements_router, prefix="/api/v1/announcements", tags=["Announcements"])
 app.include_router(analytics_router, prefix="/api/v1/analytics", tags=["Analytics"])
+app.include_router(qa_router, prefix="/api/v1/qa", tags=["Q&A"])
+app.include_router(reports_router, prefix="/api/v1/reports", tags=["Reports"])
 app.include_router(admin_router, prefix="/api/v1/admin", tags=["Admin"])

@@ -426,7 +426,7 @@ The audit reported that a Super Admin request for course progress without a targ
 - [x] Course reviews and ratings (incl. moderation and rating summary)
 - [x] Organization/university management (members, course linking, stats)
 - [ ] Secure coding practice and auto-grading, if required
-- [ ] Course discussions, if required
+- [x] Course discussions (Q&A) and content reports with moderation
 - [ ] Final role-based permission audit
 - [ ] Frontend API integration and end-to-end tests
 

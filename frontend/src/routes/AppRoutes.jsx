@@ -1,5 +1,5 @@
 import React from 'react';
-import { Routes, Route } from 'react-router-dom';
+import { Routes, Route, Navigate } from 'react-router-dom';
 
 // Layouts
 import PublicLayout from '../layouts/PublicLayout';
@@ -45,6 +45,7 @@ import InstructorAnalytics from '../pages/instructor/Analytics';
 
 // Admin Pages
 import AdminDashboard from '../pages/admin/Dashboard';
+import Courses from '../pages/admin/Courses';
 import CourseApprovals from '../pages/admin/CourseApprovals';
 import CourseReview from '../pages/admin/CourseReview';
 import Users from '../pages/admin/Users';
@@ -101,7 +102,9 @@ export default function AppRoutes() {
 
       {/* Admin Routes */}
       <Route path="/admin" element={<AdminLayout />}>
+        <Route index element={<Navigate to="dashboard" replace />} />
         <Route path="dashboard" element={<AdminDashboard />} />
+        <Route path="courses" element={<Courses />} />
         <Route path="approvals" element={<CourseApprovals />} />
         <Route path="review/:id" element={<CourseReview />} />
         <Route path="users" element={<Users />} />

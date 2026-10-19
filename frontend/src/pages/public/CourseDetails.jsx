@@ -9,7 +9,7 @@ export default function CourseDetails() {
     <div>
       <CourseHeader title="Course Details" subtitle="Detailed information about the course curriculum" instructor="Instructor Name" />
       <PageContainer>
-        <p className="text-gray-600">Course content, requirements, and curriculum view.</p>
+        <p className="text-[#514940]">Course content, requirements, and curriculum view.</p>
       </PageContainer>
     </div>
   );

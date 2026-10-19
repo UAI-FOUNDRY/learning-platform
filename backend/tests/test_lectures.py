@@ -117,6 +117,8 @@ def test_5_list_lectures(client, db_session):
     instructor = create_user(db_session, "inst_lec_5@platform.com", role="instructor")
     learner = create_user(db_session, "learner_lec_5@platform.com", role="learner")
     course, section = create_course_and_section(db_session, instructor.id, "Course 5")
+    course.status = "published"  # outline is public only for published courses
+    db_session.commit()
 
     l1 = Lecture(section_id=section.id, title="Lec 1", duration=100, order_index=0)
     l2 = Lecture(section_id=section.id, title="Lec 2", duration=200, order_index=1)
@@ -168,6 +170,8 @@ def test_8_get_lecture(client, db_session):
     instructor = create_user(db_session, "inst_lec_8@platform.com", role="instructor")
     learner = create_user(db_session, "learner_lec_8@platform.com", role="learner")
     course, section = create_course_and_section(db_session, instructor.id, "Course 8")
+    course.status = "published"  # outline is public only for published courses
+    db_session.commit()
 
     lec = Lecture(section_id=section.id, title="Lecture Details", duration=600, order_index=0)
     db_session.add(lec)

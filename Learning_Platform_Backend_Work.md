@@ -427,7 +427,7 @@ The audit reported that a Super Admin request for course progress without a targ
 - [x] Organization/university management (members, course linking, stats)
 - [ ] Secure coding practice and auto-grading, if required
 - [x] Course discussions (Q&A) and content reports with moderation
-- [ ] Final role-based permission audit
+- [x] Role-based permission audit (draft course structure and lecture URLs were readable by any logged-in user; fixed; `tests/test_permissions.py` pins the PUBLIC allow-list and the admin-only routes)
 - [ ] Frontend API integration and end-to-end tests
 
 ---

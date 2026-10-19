@@ -101,6 +101,8 @@ def test_5_list_sections(client, db_session):
     instructor = create_user(db_session, "inst_sec_5@platform.com", role="instructor")
     learner = create_user(db_session, "learner_sec_5@platform.com", role="learner")
     course = create_course(db_session, instructor.id, "Course 5")
+    course.status = "published"  # outline is public only for published courses
+    db_session.commit()
 
     s1 = Section(course_id=course.id, title="Sec 1", order_index=0)
     s2 = Section(course_id=course.id, title="Sec 2", order_index=1)
@@ -152,6 +154,8 @@ def test_8_get_section(client, db_session):
     instructor = create_user(db_session, "inst_sec_8@platform.com", role="instructor")
     learner = create_user(db_session, "learner_sec_8@platform.com", role="learner")
     course = create_course(db_session, instructor.id, "Course 8")
+    course.status = "published"  # outline is public only for published courses
+    db_session.commit()
 
     sec = Section(course_id=course.id, title="Detail Section", order_index=0)
     db_session.add(sec)

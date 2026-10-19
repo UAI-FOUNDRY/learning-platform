@@ -8,7 +8,7 @@ from app.models.section import Section
 from app.models.course import Course
 from app.models.progress import Progress
 from app.models.user import User
-from app.schemas.lecture import LectureCreate, LectureUpdate
+from app.schemas.lecture import LectureCreate, LectureUpdate, LectureResponse
 
 class LectureService:
     def get_by_id(self, db: Session, lecture_id: str) -> Optional[Lecture]:
@@ -16,7 +16,20 @@ class LectureService:
             return None
         return db.query(Lecture).filter(Lecture.id == lecture_id).first()
 
-    def get_lecture(self, db: Session, lecture_id: str, current_user: User) -> Lecture:
+    def _course_of(self, db: Session, section: Section) -> Course:
+        course = db.query(Course).filter(Course.id == section.course_id).first()
+        if not course:
+            raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Parent course not found")
+        return course
+
+    def _to_response(self, db: Session, course: Course, lecture: Lecture, user: User) -> LectureResponse:
+        """Never hand out the video/file URL of a lecture the caller may not watch."""
+        data = LectureResponse.model_validate(lecture)
+        if not course_policy.can_view_lecture_content(db, user, course, lecture.is_preview):
+            data.content_url = None
+        return data
+
+    def _load(self, db: Session, lecture_id: str) -> Lecture:
         lecture = self.get_by_id(db, lecture_id)
         if not lecture:
             raise HTTPException(
@@ -25,25 +38,35 @@ class LectureService:
             )
         return lecture
 
+    def get_lecture(self, db: Session, lecture_id: str, current_user: User) -> LectureResponse:
+        lecture = self._load(db, lecture_id)
+        section = db.query(Section).filter(Section.id == lecture.section_id).first()
+        course = self._course_of(db, section)
+        course_policy.require_structure_access(db, current_user, course)
+        return self._to_response(db, course, lecture, current_user)
+
     def list_lectures_for_section(
         self,
         db: Session,
         section_id: str,
         current_user: User
-    ) -> List[Lecture]:
+    ) -> List[LectureResponse]:
         section = db.query(Section).filter(Section.id == section_id).first()
         if not section:
             raise HTTPException(
                 status_code=status.HTTP_404_NOT_FOUND,
                 detail=f"Section with id '{section_id}' not found"
             )
+        course = self._course_of(db, section)
+        course_policy.require_structure_access(db, current_user, course)
 
-        return (
+        lectures = (
             db.query(Lecture)
             .filter(Lecture.section_id == section_id)
             .order_by(Lecture.order_index.asc(), Lecture.created_at.asc())
             .all()
         )
+        return [self._to_response(db, course, lec, current_user) for lec in lectures]
 
     def create_lecture(
         self,
@@ -108,6 +131,7 @@ class LectureService:
             content_url=lecture_in.content_url.strip() if lecture_in.content_url else None,
             duration=lecture_in.duration if lecture_in.duration is not None else 0,
             order_index=order_idx,
+            is_preview=bool(lecture_in.is_preview),
         )
 
         try:
@@ -128,7 +152,7 @@ class LectureService:
         lecture_in: LectureUpdate,
         current_user: User
     ) -> Lecture:
-        lecture = self.get_lecture(db, lecture_id, current_user)
+        lecture = self._load(db, lecture_id)
         section = db.query(Section).filter(Section.id == lecture.section_id).first()
         course = db.query(Course).filter(Course.id == section.course_id).first() if section else None
 
@@ -162,6 +186,8 @@ class LectureService:
 
         if lecture_in.content_url is not None:
             lecture.content_url = lecture_in.content_url.strip() if lecture_in.content_url else None
+        if lecture_in.is_preview is not None:
+            lecture.is_preview = lecture_in.is_preview
 
         if lecture_in.duration is not None:
             lecture.duration = lecture_in.duration
@@ -185,7 +211,7 @@ class LectureService:
         lecture_id: str,
         current_user: User
     ) -> None:
-        lecture = self.get_lecture(db, lecture_id, current_user)
+        lecture = self._load(db, lecture_id)
         section = db.query(Section).filter(Section.id == lecture.section_id).first()
         course = db.query(Course).filter(Course.id == section.course_id).first() if section else None
 

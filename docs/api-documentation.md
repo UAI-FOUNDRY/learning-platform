@@ -151,6 +151,18 @@ When a question, answer or review gets `content.auto_hide_report_threshold` open
 people (default 5) it is hidden automatically and logged as `content.auto_hidden`. `GET /admin/overview`
 includes `open_reports`.
 
+## Who can see course content
+
+- **Course outline** (`GET /courses/{id}/sections`, `/sections/{id}`, `/sections/{id}/lectures`, `/lectures/{id}`):
+  any logged-in user for a *published* course; for a draft, pending or rejected course only the owning instructor, a
+  super admin, or a learner who was enrolled while it was live. Everyone else gets `404`.
+- **Lecture `content_url`** (the video/file link) is only returned to the owner, super admins, enrolled learners
+  (ACTIVE or COMPLETED), and for lectures marked `is_preview: true` (free preview). For everybody else it is `null`.
+  Instructors set the preview flag with `is_preview` on lecture create/update.
+- Quizzes, assignments, submissions, enrollments, progress: enrolled learner (own data only), course owner, super admin.
+- Anonymous visitors can only call the endpoints listed in `PUBLIC` in `backend/tests/test_permissions.py`
+  (health, auth, catalog, reviews list, certificate verify, public settings). The test fails if a new route is open by accident.
+
 ## Analytics
 All three accept `days` (7-365, default 30) and return a `series` with one row per day.
 

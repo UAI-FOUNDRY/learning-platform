@@ -8,6 +8,7 @@ class LectureBase(BaseSchema):
     content_url: Optional[str] = None
     duration: Optional[int] = 0
     order_index: Optional[int] = None
+    is_preview: bool = False
 
     @field_validator("title")
     @classmethod
@@ -49,6 +50,7 @@ class LectureUpdate(BaseSchema):
     content_url: Optional[str] = None
     duration: Optional[int] = None
     order_index: Optional[int] = None
+    is_preview: Optional[bool] = None
 
     @field_validator("title")
     @classmethod
@@ -91,4 +93,5 @@ class LectureResponse(BaseSchema):
     content_url: Optional[str] = None
     duration: int = 0
     order_index: int
+    is_preview: bool = False
     created_at: Optional[datetime] = None

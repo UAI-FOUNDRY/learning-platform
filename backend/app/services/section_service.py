@@ -20,13 +20,20 @@ class SectionService:
             return None
         return db.query(Section).filter(Section.id == section_id).first()
 
-    def get_section(self, db: Session, section_id: str, current_user: User) -> Section:
+    def _load(self, db: Session, section_id: str) -> Section:
         section = self.get_by_id(db, section_id)
         if not section:
             raise HTTPException(
                 status_code=status.HTTP_404_NOT_FOUND,
                 detail="Section not found"
             )
+        return section
+
+    def get_section(self, db: Session, section_id: str, current_user: User) -> Section:
+        section = self._load(db, section_id)
+        course = db.query(Course).filter(Course.id == section.course_id).first()
+        if course:
+            course_policy.require_structure_access(db, current_user, course)
         return section
 
     def list_sections_for_course(
@@ -41,6 +48,7 @@ class SectionService:
                 status_code=status.HTTP_404_NOT_FOUND,
                 detail=f"Course with id '{course_id}' not found"
             )
+        course_policy.require_structure_access(db, current_user, course)
 
         return (
             db.query(Section)
@@ -123,7 +131,7 @@ class SectionService:
         section_in: SectionUpdate,
         current_user: User
     ) -> Section:
-        section = self.get_section(db, section_id, current_user)
+        section = self._load(db, section_id)
         course = db.query(Course).filter(Course.id == section.course_id).first()
 
         # Role and ownership checks
@@ -173,7 +181,7 @@ class SectionService:
         section_id: str,
         current_user: User
     ) -> None:
-        section = self.get_section(db, section_id, current_user)
+        section = self._load(db, section_id)
         course = db.query(Course).filter(Course.id == section.course_id).first()
 
         # Role and ownership checks

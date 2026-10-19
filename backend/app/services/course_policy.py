@@ -7,6 +7,7 @@ from sqlalchemy.orm import Session
 
 from app.models.course import Course
 from app.models.course_approval_log import CourseApprovalLog
+from app.models.enrollment import Enrollment
 from app.models.user import User
 from app.services.audit_service import audit_service
 from app.services.platform_settings_service import get_setting
@@ -26,6 +27,49 @@ def is_live_for_enrolled(course: Course) -> bool:
     if status == PUBLISHED:
         return True
     return course.published_at is not None and status in (PENDING_REVIEW, CHANGES_REQUESTED, "draft")
+
+
+def is_course_manager(user: User, course: Course) -> bool:
+    """Super admins manage every course; an instructor manages only the courses they own."""
+    return user.role == "super_admin" or (user.role == "instructor" and course.instructor_id == user.id)
+
+
+def has_course_access(db: Session, user: User, course: Course) -> bool:
+    """Enrolled (ACTIVE or COMPLETED) in a course that is live for enrolled learners."""
+    if not is_live_for_enrolled(course):
+        return False
+    return (
+        db.query(Enrollment.id)
+        .filter(
+            Enrollment.user_id == user.id,
+            Enrollment.course_id == course.id,
+            Enrollment.status.in_(["ACTIVE", "COMPLETED"]),
+        )
+        .first()
+        is not None
+    )
+
+
+def can_view_structure(db: Session, user: User, course: Course) -> bool:
+    """Section/lecture titles: managers, anyone for a published course, enrolled learners."""
+    return (
+        is_course_manager(user, course)
+        or (course.status or "").lower() == PUBLISHED
+        or has_course_access(db, user, course)
+    )
+
+
+def require_structure_access(db: Session, user: User, course: Course) -> None:
+    """Hide unpublished courses from people who may not see them (404, not 403, so drafts do not leak)."""
+    if not can_view_structure(db, user, course):
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Course not found")
+
+
+def can_view_lecture_content(db: Session, user: User, course: Course, is_preview: bool) -> bool:
+    """Lecture video/file URL: managers, enrolled learners, or anybody for a free-preview lecture."""
+    if is_course_manager(user, course) or has_course_access(db, user, course):
+        return True
+    return bool(is_preview) and (course.status or "").lower() == PUBLISHED
 
 
 def log_approval(

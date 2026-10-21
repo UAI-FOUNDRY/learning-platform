@@ -3,7 +3,7 @@ const BASE_URL = import.meta.env.VITE_API_BASE_URL || '/api/v1';
 
 export async function apiClient(endpoint, { body, params, ...customConfig } = {}) {
   const headers = { 'Content-Type': 'application/json' };
-  const token = localStorage.getItem('token');
+  const token = localStorage.getItem('access_token') || localStorage.getItem('token');
 
   if (token) {
     headers['Authorization'] = `Bearer ${token}`;

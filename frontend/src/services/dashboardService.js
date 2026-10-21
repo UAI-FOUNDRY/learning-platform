@@ -12,13 +12,23 @@ import {
   mockRecentUsers,
   mockRecentCourses
 } from '../data/mockDashboardData';
+import {
+  getStoredReviews,
+  getPendingCourses,
+  applyCourseReviews
+} from '../utils/courseReviews';
 
 export const dashboardService = {
   /**
    * Fetches current dashboard snapshot.
-   * Attempts live backend overview retrieval, falling back to development sample data.
+   * Integrates live backend metrics if available, falling back to development sample data.
+   * Both pathways apply the canonical pending review status and stored session decisions.
    */
   async getDashboardData() {
+    const reviews = getStoredReviews();
+    const pending = getPendingCourses(mockPendingApprovals, reviews);
+    const updatedRecentCourses = applyCourseReviews(mockRecentCourses, reviews);
+
     try {
       const overview = await adminService.getOverview();
       if (overview && typeof overview === 'object' && overview.users) {
@@ -28,16 +38,16 @@ export const dashboardService = {
           summary: {
             totalUsers: overview.users?.total ?? mockDashboardSummary.totalUsers,
             activeCourses: overview.courses?.by_status?.published ?? (overview.courses?.total || mockDashboardSummary.activeCourses),
-            pendingApprovals: overview.courses?.pending_review ?? mockDashboardSummary.pendingApprovals,
+            pendingApprovals: overview.courses?.pending_review ?? pending.length,
             totalEnrollments: overview.enrollments?.total ?? mockDashboardSummary.totalEnrollments,
             certificatesIssued: overview.certificates_issued ?? 0,
             activeOrganizations: overview.organizations ?? 0,
             openReports: overview.open_reports ?? 0
           },
           trends: { ...mockActivityTrends },
-          pendingApprovals: [...mockPendingApprovals],
+          pendingApprovals: pending,
           recentUsers: [...mockRecentUsers],
-          recentCourses: [...mockRecentCourses],
+          recentCourses: updatedRecentCourses,
           lastUpdated: new Date()
         };
       }
@@ -48,11 +58,14 @@ export const dashboardService = {
     return {
       isSampleData: true,
       dataSource: 'Development Mock Provider (Offline / Session)',
-      summary: { ...mockDashboardSummary },
+      summary: {
+        ...mockDashboardSummary,
+        pendingApprovals: pending.length
+      },
       trends: { ...mockActivityTrends },
-      pendingApprovals: [...mockPendingApprovals],
+      pendingApprovals: pending,
       recentUsers: [...mockRecentUsers],
-      recentCourses: [...mockRecentCourses],
+      recentCourses: updatedRecentCourses,
       lastUpdated: new Date()
     };
   },

@@ -370,7 +370,7 @@ export const mockRecentCourses = [
     enrolledCount: 89
   },
   {
-    id: 'crs-203',
+    id: 'c-app-101',
     title: 'Advanced Microservices Architecture with Go',
     instructor: 'Dr. Aris Thorne',
     category: 'Software Engineering',
@@ -379,7 +379,7 @@ export const mockRecentCourses = [
     enrolledCount: 0
   },
   {
-    id: 'crs-204',
+    id: 'c-app-102',
     title: 'Modern Generative AI & Prompt Engineering',
     instructor: 'Prof. Elena Rostova',
     category: 'Artificial Intelligence',

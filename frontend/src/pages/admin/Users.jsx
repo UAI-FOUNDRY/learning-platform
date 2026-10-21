@@ -5,6 +5,7 @@ import Loader from '../../components/common/Loader';
 import EmptyState from '../../components/common/EmptyState';
 import Button from '../../components/common/Button';
 import Modal from '../../components/common/Modal';
+import { useDebounce } from '../../hooks/useDebounce';
 import {
   userService,
   getStoredUserOverrides,
@@ -126,6 +127,7 @@ export default function Users() {
 
   // Search & Filter state
   const [searchQuery, setSearchQuery] = useState('');
+  const debouncedSearch = useDebounce(searchQuery, 150);
   const [roleFilter, setRoleFilter] = useState('ALL');
   const [statusFilter, setStatusFilter] = useState('ALL');
   const [sortBy, setSortBy] = useState('date-desc');
@@ -192,10 +194,10 @@ export default function Users() {
     return Object.keys(sessionOverrides).length;
   }, [sessionOverrides]);
 
-  // Reset to first page when search or filters change
+  // Reset to first page when dropdown filters or page size change
   useEffect(() => {
     setCurrentPage(1);
-  }, [searchQuery, roleFilter, statusFilter, pageSize, sortBy]);
+  }, [roleFilter, statusFilter, pageSize, sortBy]);
 
   // Summary Metrics calculated directly from resolved users dataset
   const summaryMetrics = useMemo(() => {
@@ -213,8 +215,8 @@ export default function Users() {
     let result = [...users];
 
     // Search query: matching name or email
-    if (searchQuery.trim()) {
-      const q = searchQuery.toLowerCase().trim();
+    if (debouncedSearch.trim()) {
+      const q = debouncedSearch.toLowerCase().trim();
       result = result.filter(u =>
         (u.name || '').toLowerCase().includes(q) ||
         (u.email || '').toLowerCase().includes(q) ||
@@ -251,12 +253,12 @@ export default function Users() {
     });
 
     return result;
-  }, [users, searchQuery, roleFilter, statusFilter, sortBy]);
+  }, [users, debouncedSearch, roleFilter, statusFilter, sortBy]);
 
   // Pagination calculation
   const totalFilteredItems = filteredAndSortedUsers.length;
   const totalPages = Math.max(1, Math.ceil(totalFilteredItems / pageSize));
-  const safeCurrentPage = Math.min(currentPage, totalPages);
+  const safeCurrentPage = Math.max(1, Math.min(currentPage, totalPages));
   const startIndex = (safeCurrentPage - 1) * pageSize;
   const paginatedUsers = filteredAndSortedUsers.slice(startIndex, startIndex + pageSize);
 
@@ -308,6 +310,7 @@ export default function Users() {
     setRoleFilter('ALL');
     setStatusFilter('ALL');
     setSortBy('date-desc');
+    if (currentPage !== 1) setCurrentPage(1);
   };
 
   return (
@@ -502,7 +505,10 @@ export default function Users() {
               <input
                 type="text"
                 value={searchQuery}
-                onChange={e => setSearchQuery(e.target.value)}
+                onChange={e => {
+                  setSearchQuery(e.target.value);
+                  if (currentPage !== 1) setCurrentPage(1);
+                }}
                 placeholder="Search users by name, email, or user ID..."
                 aria-label="Search users by name, email, or user ID"
                 className="w-full pl-9 pr-8 py-2 text-[13px] bg-[#EAE3DA] text-[#211E1A] placeholder-[#71675D] border border-[#B6AA9A] rounded-lg focus:outline-none focus-visible:ring-2 focus-visible:ring-[#D92D2D] focus-visible:bg-[#F3ECE4]"
@@ -510,7 +516,10 @@ export default function Users() {
               {searchQuery && (
                 <button
                   type="button"
-                  onClick={() => setSearchQuery('')}
+                  onClick={() => {
+                    setSearchQuery('');
+                    if (currentPage !== 1) setCurrentPage(1);
+                  }}
                   className="absolute inset-y-0 right-0 pr-2.5 flex items-center text-[#71675D] hover:text-[#211E1A]"
                   aria-label="Clear search input"
                 >

@@ -5,6 +5,7 @@ import Loader from '../../components/common/Loader';
 import EmptyState from '../../components/common/EmptyState';
 import Button from '../../components/common/Button';
 import Modal from '../../components/common/Modal';
+import { useDebounce } from '../../hooks/useDebounce';
 import {
   categoryService,
   getStoredCategoriesState,
@@ -63,6 +64,7 @@ export default function Categories() {
 
   // Search, filter, and sorting state
   const [searchQuery, setSearchQuery] = useState('');
+  const debouncedSearch = useDebounce(searchQuery, 150);
   const [statusFilter, setStatusFilter] = useState('ALL');
   const [sortBy, setSortBy] = useState('name-asc');
 
@@ -174,18 +176,18 @@ export default function Categories() {
     return { total, active, inactive, totalAssignedCourses, withCourses };
   }, [categories, coursesByCategory]);
 
-  // Reset to first page when search, filters, or sorting change
+  // Reset to first page when dropdown filters or sorting change
   useEffect(() => {
     setCurrentPage(1);
-  }, [searchQuery, statusFilter, sortBy, pageSize]);
+  }, [statusFilter, sortBy, pageSize]);
 
   // Filter and sort pipeline
   const filteredAndSortedCategories = useMemo(() => {
     let result = [...categories];
 
     // Search query matching name, slug, description, or subcategory
-    if (searchQuery.trim()) {
-      const q = searchQuery.toLowerCase().trim();
+    if (debouncedSearch.trim()) {
+      const q = debouncedSearch.toLowerCase().trim();
       result = result.filter(c => {
         const nameMatch = (c.name || '').toLowerCase().includes(q);
         const slugMatch = (c.slug || '').toLowerCase().includes(q);
@@ -220,12 +222,12 @@ export default function Categories() {
     });
 
     return result;
-  }, [categories, searchQuery, statusFilter, sortBy, coursesByCategory]);
+  }, [categories, debouncedSearch, statusFilter, sortBy, coursesByCategory]);
 
   // Pagination calculation
   const totalFilteredItems = filteredAndSortedCategories.length;
   const totalPages = Math.max(1, Math.ceil(totalFilteredItems / pageSize));
-  const safeCurrentPage = Math.min(currentPage, totalPages);
+  const safeCurrentPage = Math.max(1, Math.min(currentPage, totalPages));
   const startIndex = (safeCurrentPage - 1) * pageSize;
   const paginatedCategories = filteredAndSortedCategories.slice(startIndex, startIndex + pageSize);
 
@@ -408,6 +410,7 @@ export default function Categories() {
     setSearchQuery('');
     setStatusFilter('ALL');
     setSortBy('name-asc');
+    if (currentPage !== 1) setCurrentPage(1);
   };
 
   return (
@@ -594,7 +597,10 @@ export default function Categories() {
               <input
                 type="text"
                 value={searchQuery}
-                onChange={e => setSearchQuery(e.target.value)}
+                onChange={e => {
+                  setSearchQuery(e.target.value);
+                  if (currentPage !== 1) setCurrentPage(1);
+                }}
                 placeholder="Search categories by name, slug, description, or subcategory..."
                 aria-label="Search categories by name, slug, description, or subcategory"
                 className="w-full pl-9 pr-8 py-2 text-[13px] bg-[#EAE3DA] text-[#211E1A] placeholder-[#71675D] border border-[#B6AA9A] rounded-lg focus:outline-none focus-visible:ring-2 focus-visible:ring-[#D92D2D] focus-visible:bg-[#F3ECE4]"
@@ -602,7 +608,10 @@ export default function Categories() {
               {searchQuery && (
                 <button
                   type="button"
-                  onClick={() => setSearchQuery('')}
+                  onClick={() => {
+                    setSearchQuery('');
+                    if (currentPage !== 1) setCurrentPage(1);
+                  }}
                   className="absolute inset-y-0 right-0 pr-2.5 flex items-center text-[#71675D] hover:text-[#211E1A]"
                   aria-label="Clear search input"
                 >

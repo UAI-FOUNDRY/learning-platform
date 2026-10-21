@@ -3,6 +3,7 @@ import { Link } from 'react-router-dom';
 import PageContainer from '../../components/layout/PageContainer';
 import Loader from '../../components/common/Loader';
 import EmptyState from '../../components/common/EmptyState';
+import { useDebounce } from '../../hooks/useDebounce';
 import { courseService } from '../../services/courseService';
 import { mockCourses } from '../../data/mockCourses';
 import {
@@ -74,6 +75,7 @@ export default function Courses() {
 
   // Filter & Search Controls State
   const [searchQuery, setSearchQuery] = useState('');
+  const debouncedSearch = useDebounce(searchQuery, 150);
   const [statusFilter, setStatusFilter] = useState('ALL');
   const [categoryFilter, setCategoryFilter] = useState('ALL');
   const [sortBy, setSortBy] = useState('date-desc');
@@ -129,10 +131,10 @@ export default function Courses() {
     return Object.keys(sessionReviews).length;
   }, [sessionReviews]);
 
-  // Reset to first page whenever search, status, or category filter updates
+  // Reset to first page whenever dropdown filters or page size update
   useEffect(() => {
     setCurrentPage(1);
-  }, [searchQuery, statusFilter, categoryFilter, pageSize, sortBy]);
+  }, [statusFilter, categoryFilter, pageSize, sortBy]);
 
   // Derived unique categories from current course dataset
   const availableCategories = useMemo(() => {
@@ -150,7 +152,8 @@ export default function Courses() {
     const pending = courses.filter(c => c.status === 'Pending Review').length;
     const drafts = courses.filter(c => c.status === 'Draft' || c.status === 'Archived').length;
     const changesRequested = courses.filter(c => c.status === 'Changes Requested').length;
-    return { total, published, pending, drafts, changesRequested };
+    const rejected = courses.filter(c => c.status === 'Rejected').length;
+    return { total, published, pending, drafts, changesRequested, rejected };
   }, [courses]);
 
   // Filter and sort pipeline
@@ -158,8 +161,8 @@ export default function Courses() {
     let result = [...courses];
 
     // Search filter: matching course title or instructor
-    if (searchQuery.trim()) {
-      const q = searchQuery.toLowerCase().trim();
+    if (debouncedSearch.trim()) {
+      const q = debouncedSearch.toLowerCase().trim();
       result = result.filter(c =>
         (c.title || '').toLowerCase().includes(q) ||
         (c.instructor || '').toLowerCase().includes(q)
@@ -197,12 +200,12 @@ export default function Courses() {
     });
 
     return result;
-  }, [courses, searchQuery, statusFilter, categoryFilter, sortBy]);
+  }, [courses, debouncedSearch, statusFilter, categoryFilter, sortBy]);
 
   // Pagination calculation
   const totalFilteredItems = filteredAndSortedCourses.length;
   const totalPages = Math.max(1, Math.ceil(totalFilteredItems / pageSize));
-  const safeCurrentPage = Math.min(currentPage, totalPages);
+  const safeCurrentPage = Math.max(1, Math.min(currentPage, totalPages));
   const startIndex = (safeCurrentPage - 1) * pageSize;
   const paginatedCourses = filteredAndSortedCourses.slice(startIndex, startIndex + pageSize);
 
@@ -236,6 +239,7 @@ export default function Courses() {
     setStatusFilter('ALL');
     setCategoryFilter('ALL');
     setSortBy('date-desc');
+    if (currentPage !== 1) setCurrentPage(1);
   };
 
   return (
@@ -414,7 +418,10 @@ export default function Courses() {
               <input
                 type="text"
                 value={searchQuery}
-                onChange={e => setSearchQuery(e.target.value)}
+                onChange={e => {
+                  setSearchQuery(e.target.value);
+                  if (currentPage !== 1) setCurrentPage(1);
+                }}
                 placeholder="Search by course title or instructor..."
                 aria-label="Search courses by title or instructor"
                 className="w-full pl-9 pr-8 py-2 text-[13px] bg-[#EAE3DA] text-[#211E1A] placeholder-[#71675D] border border-[#B6AA9A] rounded-lg focus:outline-none focus-visible:ring-2 focus-visible:ring-[#D92D2D] focus-visible:bg-[#F3ECE4]"
@@ -422,7 +429,10 @@ export default function Courses() {
               {searchQuery && (
                 <button
                   type="button"
-                  onClick={() => setSearchQuery('')}
+                  onClick={() => {
+                    setSearchQuery('');
+                    if (currentPage !== 1) setCurrentPage(1);
+                  }}
                   className="absolute inset-y-0 right-0 pr-2.5 flex items-center text-[#71675D] hover:text-[#211E1A]"
                   aria-label="Clear search input"
                 >
@@ -450,6 +460,7 @@ export default function Courses() {
                   <option value="Published">Published ({summaryMetrics.published})</option>
                   <option value="Pending Review">Pending Review ({summaryMetrics.pending})</option>
                   <option value="Changes Requested">Changes Requested ({summaryMetrics.changesRequested})</option>
+                  <option value="Rejected">Rejected ({summaryMetrics.rejected})</option>
                   <option value="Draft">Draft</option>
                   <option value="Archived">Archived</option>
                 </select>
@@ -645,16 +656,14 @@ export default function Courses() {
                               </Link>
                             )}
 
-                            {/* View catalog page for published courses */}
-                            {course.status === 'Published' && (
-                              <Link
-                                to={`/courses/${course.id}`}
-                                className="px-2.5 py-1 text-[12px] font-medium text-[#211E1A] bg-[#EAE3DA] hover:bg-[#D6D0C8] border border-[#B6AA9A] rounded-md transition-colors focus:outline-none focus-visible:ring-2 focus-visible:ring-[#D92D2D]"
-                                aria-label={`View catalog page for ${course.title}`}
-                              >
-                                View
-                              </Link>
-                            )}
+                            {/* View details page for course */}
+                            <Link
+                              to={`/courses/${course.id}`}
+                              className="px-2.5 py-1 text-[12px] font-medium text-[#211E1A] bg-[#EAE3DA] hover:bg-[#D6D0C8] border border-[#B6AA9A] rounded-md transition-colors focus:outline-none focus-visible:ring-2 focus-visible:ring-[#D92D2D]"
+                              aria-label={`View details page for ${course.title}`}
+                            >
+                              View
+                            </Link>
 
                             {/* Status management toggle button */}
                             {course.status !== 'Pending Review' && (

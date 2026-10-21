@@ -106,19 +106,29 @@ export default function CourseReview() {
 
   // Modal Dialog States
   const [isApproveModalOpen, setIsApproveModalOpen] = useState(false);
+  const [isRequestChangesModalOpen, setIsRequestChangesModalOpen] = useState(false);
   const [isRejectModalOpen, setIsRejectModalOpen] = useState(false);
+  const [isResetModalOpen, setIsResetModalOpen] = useState(false);
   const [isSubmitting, setIsSubmitting] = useState(false);
+
+  const getNoticeForReview = (rev, course) => {
+    if (!rev) return null;
+    const resolved = resolveCourseStatus(course, rev);
+    let msg = `Course was approved and marked as Published (simulated in local dev session).`;
+    if (rev.decision === 'Changes Requested' || resolved === 'Changes Requested') {
+      msg = `Change request was recorded with feedback notes for the instructor (simulated in local dev session).`;
+    } else if (rev.decision === 'Rejected' || resolved === 'Rejected') {
+      msg = `Submission was rejected with justification notes (simulated in local dev session).`;
+    }
+    return {
+      status: resolved,
+      decision: rev.decision || resolved,
+      message: msg
+    };
+  };
+
   const [decisionNotice, setDecisionNotice] = useState(
-    storedReview
-      ? {
-          status: resolveCourseStatus(courseRecord, storedReview),
-          decision: storedReview.decision,
-          message:
-            storedReview.decision === 'Approved'
-              ? `Course was approved and marked as "${resolveCourseStatus(courseRecord, storedReview)}" in this session.`
-              : `Change request was recorded with feedback in this session.`
-        }
-      : null
+    storedReview ? getNoticeForReview(storedReview, courseRecord) : null
   );
 
   // Sync state if id or course changes
@@ -129,14 +139,7 @@ export default function CourseReview() {
         const resolved = resolveCourseStatus(courseRecord, prior);
         setCurrentStatus(resolved);
         setReviewerFeedback(prior.feedback || '');
-        setDecisionNotice({
-          status: resolved,
-          decision: prior.decision,
-          message:
-            prior.decision === 'Approved'
-              ? `Course was approved and marked as "${resolved}" in this session.`
-              : `Change request was recorded with feedback in this session.`
-        });
+        setDecisionNotice(getNoticeForReview(prior, courseRecord));
       } else {
         setCurrentStatus(courseRecord.status || 'Pending Review');
         setDecisionNotice(null);
@@ -153,14 +156,7 @@ export default function CourseReview() {
         const resolved = resolveCourseStatus(courseRecord, prior);
         setCurrentStatus(resolved);
         setReviewerFeedback(prior.feedback || '');
-        setDecisionNotice({
-          status: resolved,
-          decision: prior.decision,
-          message:
-            prior.decision === 'Approved'
-              ? `Course was approved and marked as "${resolved}" in this session.`
-              : `Change request was recorded with feedback in this session.`
-        });
+        setDecisionNotice(getNoticeForReview(prior, courseRecord));
       } else {
         setCurrentStatus(courseRecord.status || 'Pending Review');
         setDecisionNotice(null);
@@ -171,24 +167,44 @@ export default function CourseReview() {
     return unsubscribe;
   }, [courseRecord]);
 
-  // Handler for opening Reject / Request Changes modal with validation
+  // Handler for opening Request Changes modal with validation
+  const handleOpenRequestChangesModal = () => {
+    if (!reviewerFeedback.trim()) {
+      setFeedbackError('Reviewer feedback notes are required when requesting changes.');
+      return;
+    }
+    setFeedbackError('');
+    setIsRequestChangesModalOpen(true);
+  };
+
+  // Handler for opening Reject modal with validation
   const handleOpenRejectModal = () => {
     if (!reviewerFeedback.trim()) {
-      setFeedbackError('Reviewer feedback notes are required when requesting changes or rejecting a submission.');
+      setFeedbackError('Justification notes are required when rejecting a submission.');
       return;
     }
     setFeedbackError('');
     setIsRejectModalOpen(true);
   };
 
-  // Execute approval or change-request decision
+  // Execute approval, change-request, or rejection decision
   const handleExecuteDecision = async (decisionType) => {
     if (!courseRecord) return;
     setIsSubmitting(true);
 
-    const isApproved = decisionType === 'Approve';
-    const newStatus = isApproved ? 'Published' : 'Changes Requested';
-    const decisionLabel = isApproved ? 'Approved' : 'Changes Requested';
+    let newStatus = 'Published';
+    let decisionLabel = 'Approved';
+    let defaultMsg = `Course "${courseRecord.title}" has been approved and marked as Published (simulated in development session).`;
+
+    if (decisionType === 'RequestChanges') {
+      newStatus = 'Changes Requested';
+      decisionLabel = 'Changes Requested';
+      defaultMsg = `Change request for "${courseRecord.title}" has been recorded with your feedback notes (simulated in development session).`;
+    } else if (decisionType === 'Reject') {
+      newStatus = 'Rejected';
+      decisionLabel = 'Rejected';
+      defaultMsg = `Rejection for "${courseRecord.title}" has been recorded with your justification notes (simulated in development session).`;
+    }
 
     try {
       // Attempt backend API call if service is available
@@ -211,26 +227,26 @@ export default function CourseReview() {
 
     setCurrentStatus(newStatus);
     setIsApproveModalOpen(false);
+    setIsRequestChangesModalOpen(false);
     setIsRejectModalOpen(false);
     setIsSubmitting(false);
 
     setDecisionNotice({
       status: newStatus,
       decision: decisionLabel,
-      message: isApproved
-        ? `Course "${courseRecord.title}" has been approved and marked as Published (simulated in development session).`
-        : `Change request for "${courseRecord.title}" has been recorded with your feedback notes (simulated in development session).`
+      message: defaultMsg
     });
   };
 
-  // Reset local decision for testing re-review flow in dev mode
-  const handleResetDevDecision = () => {
+  // Reset local decision after user confirms in modal
+  const handleConfirmResetDecision = () => {
     if (!courseRecord) return;
     deleteStoredReview(courseRecord.id);
     setCurrentStatus(courseRecord.status || 'Pending Review');
     setDecisionNotice(null);
     setReviewerFeedback('');
     setFeedbackError('');
+    setIsResetModalOpen(false);
   };
 
   // If ID does not match any known record, display clean EmptyState
@@ -327,27 +343,71 @@ export default function CourseReview() {
 
         {/* Decision Feedback Banner */}
         {decisionNotice && (
-          <div className="mt-4 p-4 rounded-xl border border-emerald-300 bg-emerald-50/80 text-emerald-950 flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3 text-sm animate-fade-in shadow-xs">
+          <div
+            className={`mt-4 p-4 rounded-xl border flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3 text-sm animate-fade-in shadow-xs ${
+              decisionNotice.status === 'Published'
+                ? 'border-emerald-300 bg-emerald-50/90 text-emerald-950'
+                : decisionNotice.status === 'Rejected'
+                ? 'border-rose-300 bg-rose-50/90 text-rose-950'
+                : 'border-amber-300 bg-amber-50/90 text-amber-950'
+            }`}
+          >
             <div className="flex items-start gap-3">
-              <span className="p-1 rounded-full bg-emerald-600 text-white mt-0.5 shrink-0">
-                <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden="true">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2.5" d="M5 13l4 4L19 7" />
-                </svg>
+              <span
+                className={`p-1 rounded-full text-white mt-0.5 shrink-0 ${
+                  decisionNotice.status === 'Published'
+                    ? 'bg-emerald-600'
+                    : decisionNotice.status === 'Rejected'
+                    ? 'bg-rose-600'
+                    : 'bg-amber-600'
+                }`}
+              >
+                {decisionNotice.status === 'Published' ? (
+                  <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden="true">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2.5" d="M5 13l4 4L19 7" />
+                  </svg>
+                ) : (
+                  <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden="true">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z" />
+                  </svg>
+                )}
               </span>
               <div>
-                <p className="font-semibold text-[#211E1A]">
-                  Decision Stored: {decisionNotice.decision}
-                </p>
-                <p className="text-[#514940] text-xs mt-0.5">
+                <div className="flex flex-wrap items-center gap-2">
+                  <p className="font-semibold text-[#211E1A]">
+                    Review Decision Recorded: {decisionNotice.decision}
+                  </p>
+                  <span className="text-[10px] font-bold uppercase tracking-wider px-2 py-0.5 rounded bg-[#EAE3DA] text-[#514940] border border-[#B6AA9A]">
+                    Local Dev Session
+                  </span>
+                </div>
+                <p className="text-[#514940] text-xs mt-1">
                   {decisionNotice.message}
+                </p>
+                <p className="text-[#71675D] text-[11px] mt-0.5">
+                  Stored in local browser storage (localStorage). Backend endpoints (/api/v1/admin/courses/{courseRecord.id}/...) are simulated in this prototype.
                 </p>
               </div>
             </div>
 
-            <div className="flex items-center gap-2 self-end sm:self-auto shrink-0">
+            <div className="flex flex-wrap items-center gap-2 self-end sm:self-auto shrink-0">
+              {decisionNotice.status === 'Published' && (
+                <Link
+                  to={`/courses/${courseRecord.id}`}
+                  className="px-3 py-1.5 text-xs font-semibold rounded-lg bg-[#EAE3DA] text-[#211E1A] border border-[#B6AA9A] hover:bg-[#D6D0C8] transition-colors"
+                >
+                  View in Catalog
+                </Link>
+              )}
               <Link
                 to="/admin/approvals"
-                className="px-3 py-1.5 text-xs font-semibold rounded-lg bg-emerald-700 text-white hover:bg-emerald-800 transition-colors shadow-2xs"
+                className={`px-3 py-1.5 text-xs font-semibold rounded-lg text-white transition-colors shadow-2xs ${
+                  decisionNotice.status === 'Published'
+                    ? 'bg-emerald-700 hover:bg-emerald-800'
+                    : decisionNotice.status === 'Rejected'
+                    ? 'bg-rose-700 hover:bg-rose-800'
+                    : 'bg-amber-700 hover:bg-amber-800'
+                }`}
               >
                 Return to Approvals Queue →
               </Link>
@@ -573,29 +633,48 @@ export default function CourseReview() {
                     <span>Approve & Publish Course</span>
                   </Button>
 
-                  {/* Request Changes / Reject Button */}
+                  {/* Request Changes Button */}
+                  <Button
+                    variant="outline"
+                    onClick={handleOpenRequestChangesModal}
+                    disabled={isSubmitting}
+                    className="w-full text-xs font-semibold py-2 border-amber-600/60 text-amber-900 bg-amber-50/60 hover:bg-amber-100/70"
+                  >
+                    Request Changes from Instructor
+                  </Button>
+
+                  {/* Reject Submission Button */}
                   <Button
                     variant="outline"
                     onClick={handleOpenRejectModal}
                     disabled={isSubmitting}
-                    className="w-full text-xs font-semibold py-2 border-[#991B1B]/40 text-[#991B1B] hover:bg-rose-50"
+                    className="w-full text-xs font-semibold py-2 border-rose-300 text-rose-900 bg-rose-50/60 hover:bg-rose-100/70"
                   >
-                    Request Changes / Reject
+                    Reject Submission
                   </Button>
 
                   <p className="text-[11px] text-[#71675D] leading-normal text-center mt-2">
-                    Decisions are stored in your local session and update the queue accordingly.
+                    Decisions are saved to your local browser session and synchronize across the queue and dashboard.
                   </p>
                 </div>
               ) : (
                 /* Already Reviewed State */
                 <div className="pt-2 space-y-3">
-                  <div className="p-3 bg-[#EAE3DA] border border-[#B6AA9A] rounded-lg text-xs">
-                    <span className="font-semibold text-[#211E1A] block">
-                      Decision Completed: {currentStatus}
-                    </span>
-                    <span className="text-[#514940] text-[11px] mt-0.5 block">
-                      Course has been processed. You can return to the queue or reset the session for re-review.
+                  <div className="p-3 bg-[#EAE3DA] border border-[#B6AA9A] rounded-lg text-xs space-y-2">
+                    <div className="flex items-center justify-between">
+                      <span className="font-semibold text-[#211E1A]">
+                        Decision Recorded:
+                      </span>
+                      <StatusBadge status={currentStatus} />
+                    </div>
+                    {reviewerFeedback && (
+                      <div className="p-2 bg-[#F3ECE4] rounded border border-[#B6AA9A]/70 text-[11px]">
+                        <span className="text-[#71675D] font-medium block mb-0.5">Reviewer Notes:</span>
+                        <p className="text-[#211E1A] whitespace-pre-wrap">{reviewerFeedback}</p>
+                      </div>
+                    )}
+                    <span className="text-[#71675D] text-[10px] block leading-tight">
+                      Stored in local session (prototype persistence). Changes are reflected across Dashboard, Approvals Queue, and Course Management.
                     </span>
                   </div>
 
@@ -606,13 +685,25 @@ export default function CourseReview() {
                     Return to Course Approvals Queue
                   </Link>
 
-                  <button
-                    type="button"
-                    onClick={handleResetDevDecision}
-                    className="w-full text-center text-[11px] text-[#71675D] hover:text-[#D92D2D] underline py-1"
-                  >
-                    Reset session decision (Re-test review)
-                  </button>
+                  {currentStatus === 'Published' && (
+                    <Link
+                      to={`/courses/${courseRecord.id}`}
+                      className="w-full inline-flex items-center justify-center py-2 px-3 text-xs font-semibold rounded-lg bg-[#EAE3DA] text-[#211E1A] border border-[#B6AA9A] hover:bg-[#D6D0C8] transition-colors"
+                    >
+                      View Course in Catalog →
+                    </Link>
+                  )}
+
+                  {/* Dev Action Reset with Confirmation */}
+                  <div className="pt-2 border-t border-[#B6AA9A]/60">
+                    <button
+                      type="button"
+                      onClick={() => setIsResetModalOpen(true)}
+                      className="w-full text-center text-[11px] font-medium text-[#71675D] hover:text-[#D92D2D] underline py-1"
+                    >
+                      [Dev Action] Reset session decision (Re-test review)
+                    </button>
+                  </div>
                 </div>
               )}
             </div>
@@ -672,15 +763,15 @@ export default function CourseReview() {
         </div>
       </Modal>
 
-      {/* Confirmation Modal: Request Changes / Reject */}
+      {/* Confirmation Modal: Request Changes */}
       <Modal
-        isOpen={isRejectModalOpen}
-        onClose={() => !isSubmitting && setIsRejectModalOpen(false)}
+        isOpen={isRequestChangesModalOpen}
+        onClose={() => !isSubmitting && setIsRequestChangesModalOpen(false)}
         title="Confirm Course Change Request"
       >
         <div className="space-y-4 text-xs sm:text-sm text-[#514940]">
           <p>
-            Are you sure you want to request changes for{' '}
+            Are you sure you want to request revisions for{' '}
             <strong className="text-[#211E1A]">"{courseRecord.title}"</strong>?
           </p>
 
@@ -694,7 +785,53 @@ export default function CourseReview() {
           </div>
 
           <p className="text-[11px] text-[#71675D]">
-            The course status will be set to <strong className="text-amber-900">Changes Requested</strong> and returned to the instructor.
+            The course status will be set to <strong className="text-amber-900">Changes Requested</strong> and removed from the pending approvals queue until resubmitted.
+          </p>
+
+          <div className="flex justify-end gap-2.5 pt-2 border-t border-[#B6AA9A]">
+            <Button
+              variant="secondary"
+              onClick={() => setIsRequestChangesModalOpen(false)}
+              disabled={isSubmitting}
+              className="text-xs"
+            >
+              Cancel
+            </Button>
+            <Button
+              variant="primary"
+              onClick={() => handleExecuteDecision('RequestChanges')}
+              disabled={isSubmitting}
+              className="text-xs bg-amber-700 hover:bg-amber-800 border-amber-800"
+            >
+              {isSubmitting ? 'Recording...' : 'Confirm Change Request'}
+            </Button>
+          </div>
+        </div>
+      </Modal>
+
+      {/* Confirmation Modal: Reject Submission */}
+      <Modal
+        isOpen={isRejectModalOpen}
+        onClose={() => !isSubmitting && setIsRejectModalOpen(false)}
+        title="Confirm Course Rejection"
+      >
+        <div className="space-y-4 text-xs sm:text-sm text-[#514940]">
+          <p>
+            Are you sure you want to reject the submission for{' '}
+            <strong className="text-[#211E1A]">"{courseRecord.title}"</strong>?
+          </p>
+
+          <div className="p-3 bg-[#C8BBAA] border border-[#B6AA9A] rounded-lg text-xs space-y-1.5">
+            <span className="font-semibold text-[#211E1A] block">
+              Rejection Justification Notes:
+            </span>
+            <p className="font-mono bg-[#EAE3DA] p-2 rounded border border-[#B6AA9A] text-[#211E1A] text-[11px] whitespace-pre-wrap">
+              {reviewerFeedback}
+            </p>
+          </div>
+
+          <p className="text-[11px] text-[#71675D]">
+            The course status will be marked as <strong className="text-rose-900">Rejected</strong> and removed from the pending approvals queue.
           </p>
 
           <div className="flex justify-end gap-2.5 pt-2 border-t border-[#B6AA9A]">
@@ -712,7 +849,54 @@ export default function CourseReview() {
               disabled={isSubmitting}
               className="text-xs"
             >
-              {isSubmitting ? 'Recording...' : 'Confirm Change Request'}
+              {isSubmitting ? 'Recording...' : 'Confirm Rejection'}
+            </Button>
+          </div>
+        </div>
+      </Modal>
+
+      {/* Confirmation Modal: Reset Prototype Decision */}
+      <Modal
+        isOpen={isResetModalOpen}
+        onClose={() => setIsResetModalOpen(false)}
+        title="Confirm Reset of Prototype Review Decision"
+      >
+        <div className="space-y-4 text-xs sm:text-sm text-[#514940]">
+          <p>
+            Are you sure you want to revert the local prototype review decision for{' '}
+            <strong className="text-[#211E1A]">"{courseRecord.title}"</strong>?
+          </p>
+
+          <div className="p-3 bg-amber-50/80 border border-amber-300 rounded-lg text-xs space-y-1.5 text-amber-950">
+            <p>
+              • <strong>Course Status:</strong> Will revert from <span className="font-bold">{currentStatus}</span> back to <span className="font-bold">Pending Review</span>.
+            </p>
+            <p>
+              • <strong>Synchronization:</strong> The course will reappear in the Course Approvals queue and increment the Dashboard pending count.
+            </p>
+            <p>
+              • <strong>Audit Event:</strong> A reset event will be appended to the administrative Activity Logs.
+            </p>
+          </div>
+
+          <p className="text-[11px] text-[#71675D]">
+            This action clears the decision from your browser's localStorage and returns the submission to an actionable state.
+          </p>
+
+          <div className="flex justify-end gap-2.5 pt-2 border-t border-[#B6AA9A]">
+            <Button
+              variant="secondary"
+              onClick={() => setIsResetModalOpen(false)}
+              className="text-xs"
+            >
+              Cancel
+            </Button>
+            <Button
+              variant="danger"
+              onClick={handleConfirmResetDecision}
+              className="text-xs"
+            >
+              Confirm Reset (Revert to Pending)
             </Button>
           </div>
         </div>

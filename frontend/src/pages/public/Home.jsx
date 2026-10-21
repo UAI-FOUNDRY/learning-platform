@@ -1,4 +1,5 @@
 import React from 'react';
+import { Link } from 'react-router-dom';
 import PageContainer from '../../components/layout/PageContainer';
 import CourseGrid from '../../components/course/CourseGrid';
 import { mockCourses } from '../../data/mockCourses';
@@ -16,6 +17,20 @@ export default function Home() {
         <p className="mt-4 text-base sm:text-lg text-[#514940] max-w-2xl mx-auto">
           Discover a wide variety of courses taught by expert instructors and university faculty.
         </p>
+        <div className="mt-6 flex flex-wrap items-center justify-center gap-3">
+          <Link
+            to="/courses"
+            className="px-5 py-2.5 rounded-lg bg-[#211E1A] text-white font-bold text-sm hover:bg-black transition-colors"
+          >
+            Explore Catalog
+          </Link>
+          <Link
+            to="/instructor/dashboard"
+            className="px-5 py-2.5 rounded-lg bg-[#D92D2D] text-white font-bold text-sm hover:bg-[#B91C1C] transition-colors shadow-xs"
+          >
+            Open Instructor Portal →
+          </Link>
+        </div>
       </section>
 
       <section>

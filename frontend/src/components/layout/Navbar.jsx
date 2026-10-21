@@ -430,8 +430,14 @@ export default function Navbar({
           Contact
         </Link>
         <Link
+          to="/instructor/dashboard"
+          className="text-xs px-3 py-1.5 rounded-md bg-[#D92D2D] text-white font-bold hover:bg-[#B91C1C] transition-all shadow-xs"
+        >
+          Instructor Portal
+        </Link>
+        <Link
           to="/admin/dashboard"
-          className="text-xs px-2.5 py-1 rounded-md bg-[#EAE3DA] text-[#D92D2D] border border-[#B6AA9A] font-semibold hover:border-[#D92D2D]/60 transition-colors"
+          className="text-xs px-2.5 py-1.5 rounded-md bg-[#EAE3DA] text-[#D92D2D] border border-[#B6AA9A] font-semibold hover:border-[#D92D2D]/60 transition-colors"
         >
           Super Admin
         </Link>
@@ -492,9 +498,16 @@ export default function Navbar({
             Contact
           </Link>
           <Link
+            to="/instructor/dashboard"
+            onClick={() => setIsPublicMobileMenuOpen(false)}
+            className="text-sm font-bold text-[#D92D2D] py-1"
+          >
+            Instructor Portal
+          </Link>
+          <Link
             to="/admin/dashboard"
             onClick={() => setIsPublicMobileMenuOpen(false)}
-            className="text-sm font-semibold text-[#D92D2D] py-1"
+            className="text-sm font-semibold text-[#514940] py-1"
           >
             Super Admin Portal
           </Link>

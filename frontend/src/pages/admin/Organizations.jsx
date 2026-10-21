@@ -5,6 +5,7 @@ import EmptyState from '../../components/common/EmptyState';
 import Button from '../../components/common/Button';
 import Modal from '../../components/common/Modal';
 import ConfirmDialog from '../../components/common/ConfirmDialog';
+import { useDebounce } from '../../hooks/useDebounce';
 import {
   organizationService,
   getStoredOrganizationsState,
@@ -100,6 +101,7 @@ export default function Organizations() {
 
   // Search, filter, and sorting state
   const [searchQuery, setSearchQuery] = useState('');
+  const debouncedSearch = useDebounce(searchQuery, 150);
   const [typeFilter, setTypeFilter] = useState('ALL');
   const [statusFilter, setStatusFilter] = useState('ALL');
   const [sortBy, setSortBy] = useState('members-desc');
@@ -200,18 +202,18 @@ export default function Organizations() {
     return { total, activeInstitutions, corporatePartners, totalMembers, totalCourses };
   }, [organizations]);
 
-  // Reset to first page when search, filters, or sorting change
+  // Reset to first page when dropdown filters, sorting, or page size change
   useEffect(() => {
     setCurrentPage(1);
-  }, [searchQuery, typeFilter, statusFilter, sortBy, pageSize]);
+  }, [typeFilter, statusFilter, sortBy, pageSize]);
 
   // Filter and sort pipeline
   const filteredAndSortedOrganizations = useMemo(() => {
     let result = [...organizations];
 
     // Search query matching name, slug, domain, contactEmail, adminName, or location
-    if (searchQuery.trim()) {
-      const q = searchQuery.toLowerCase().trim();
+    if (debouncedSearch.trim()) {
+      const q = debouncedSearch.toLowerCase().trim();
       result = result.filter(o => {
         const nameMatch = (o.name || '').toLowerCase().includes(q);
         const slugMatch = (o.slug || '').toLowerCase().includes(q);
@@ -252,12 +254,12 @@ export default function Organizations() {
     });
 
     return result;
-  }, [organizations, searchQuery, typeFilter, statusFilter, sortBy]);
+  }, [organizations, debouncedSearch, typeFilter, statusFilter, sortBy]);
 
   // Pagination calculation
   const totalFilteredItems = filteredAndSortedOrganizations.length;
   const totalPages = Math.max(1, Math.ceil(totalFilteredItems / pageSize));
-  const safeCurrentPage = Math.min(currentPage, totalPages);
+  const safeCurrentPage = Math.max(1, Math.min(currentPage, totalPages));
   const startIndex = (safeCurrentPage - 1) * pageSize;
   const paginatedOrganizations = filteredAndSortedOrganizations.slice(startIndex, startIndex + pageSize);
 
@@ -599,14 +601,20 @@ export default function Organizations() {
           <input
             type="text"
             value={searchQuery}
-            onChange={(e) => setSearchQuery(e.target.value)}
+            onChange={(e) => {
+              setSearchQuery(e.target.value);
+              if (currentPage !== 1) setCurrentPage(1);
+            }}
             placeholder="Search organizations by name, code, domain, or admin..."
             className="w-full pl-9 pr-8 py-2 text-xs sm:text-sm rounded-lg bg-[#EAE3DA] border border-[#B6AA9A] text-[#211E1A] placeholder-[#71675D] focus:outline-none focus:ring-2 focus:ring-[#D92D2D] transition-colors"
           />
           {searchQuery && (
             <button
               type="button"
-              onClick={() => setSearchQuery('')}
+              onClick={() => {
+                setSearchQuery('');
+                if (currentPage !== 1) setCurrentPage(1);
+              }}
               className="absolute inset-y-0 right-0 pr-2.5 flex items-center text-[#71675D] hover:text-[#211E1A]"
               aria-label="Clear search query"
             >
@@ -665,6 +673,7 @@ export default function Organizations() {
                 setSearchQuery('');
                 setTypeFilter('ALL');
                 setStatusFilter('ALL');
+                if (currentPage !== 1) setCurrentPage(1);
               }}
               className="py-2 px-2.5 text-xs font-semibold rounded-lg text-[#D92D2D] hover:bg-[#EAE3DA] transition-colors focus:outline-none"
             >
@@ -698,6 +707,7 @@ export default function Organizations() {
                     setSearchQuery('');
                     setTypeFilter('ALL');
                     setStatusFilter('ALL');
+                    if (currentPage !== 1) setCurrentPage(1);
                   }}
                   className="text-xs"
                 >

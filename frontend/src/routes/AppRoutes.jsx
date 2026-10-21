@@ -53,8 +53,14 @@ import Instructors from '../pages/admin/Instructors';
 import Organizations from '../pages/admin/Organizations';
 import Categories from '../pages/admin/Categories';
 import Reports from '../pages/admin/Reports';
+import Assessments from '../pages/admin/Assessments';
+import Settings from '../pages/admin/Settings';
+import ActivityLogs from '../pages/admin/ActivityLogs';
+import Notifications from '../pages/admin/Notifications';
 
-// Navigation Guard
+// Navigation Guards
+import ProtectedRoute from '../components/navigation/ProtectedRoute';
+import RoleRoute from '../components/navigation/RoleRoute';
 import NotFound from '../components/navigation/NotFound';
 
 export default function AppRoutes() {
@@ -74,44 +80,54 @@ export default function AppRoutes() {
         <Route path="/verify-email" element={<VerifyEmail />} />
       </Route>
 
-      {/* Learner Routes */}
-      <Route path="/learner" element={<LearnerLayout />}>
-        <Route path="dashboard" element={<LearnerDashboard />} />
-        <Route path="my-learning" element={<MyLearning />} />
-        <Route path="player/:courseId" element={<CoursePlayer />} />
-        <Route path="quiz/:quizId" element={<Quiz />} />
-        <Route path="assignment/:assignmentId" element={<Assignment />} />
-        <Route path="certificates" element={<Certificates />} />
-        <Route path="wishlist" element={<Wishlist />} />
-        <Route path="profile" element={<LearnerProfile />} />
+      {/* Learner Routes (Requires authenticated session) */}
+      <Route element={<ProtectedRoute />}>
+        <Route path="/learner" element={<LearnerLayout />}>
+          <Route path="dashboard" element={<LearnerDashboard />} />
+          <Route path="my-learning" element={<MyLearning />} />
+          <Route path="player/:courseId" element={<CoursePlayer />} />
+          <Route path="quiz/:quizId" element={<Quiz />} />
+          <Route path="assignment/:assignmentId" element={<Assignment />} />
+          <Route path="certificates" element={<Certificates />} />
+          <Route path="wishlist" element={<Wishlist />} />
+          <Route path="profile" element={<LearnerProfile />} />
+        </Route>
       </Route>
 
-      {/* Instructor Routes */}
-      <Route path="/instructor" element={<InstructorLayout />}>
-        <Route path="dashboard" element={<InstructorDashboard />} />
-        <Route path="courses/new" element={<CreateCourse />} />
-        <Route path="courses/:id/edit" element={<CourseEditor />} />
-        <Route path="courses/:id/curriculum" element={<Curriculum />} />
-        <Route path="courses/:id/content" element={<ContentUpload />} />
-        <Route path="courses/:id/quiz-builder" element={<QuizBuilder />} />
-        <Route path="courses/:id/assignment-builder" element={<AssignmentBuilder />} />
-        <Route path="courses/:id/preview" element={<CoursePreview />} />
-        <Route path="submissions" element={<Submissions />} />
-        <Route path="analytics" element={<InstructorAnalytics />} />
+      {/* Instructor Routes (Requires instructor role, super_admin permitted) */}
+      <Route element={<RoleRoute allowedRoles={['instructor', 'super_admin']} />}>
+        <Route path="/instructor" element={<InstructorLayout />}>
+          <Route path="dashboard" element={<InstructorDashboard />} />
+          <Route path="courses/new" element={<CreateCourse />} />
+          <Route path="courses/:id/edit" element={<CourseEditor />} />
+          <Route path="courses/:id/curriculum" element={<Curriculum />} />
+          <Route path="courses/:id/content" element={<ContentUpload />} />
+          <Route path="courses/:id/quiz-builder" element={<QuizBuilder />} />
+          <Route path="courses/:id/assignment-builder" element={<AssignmentBuilder />} />
+          <Route path="courses/:id/preview" element={<CoursePreview />} />
+          <Route path="submissions" element={<Submissions />} />
+          <Route path="analytics" element={<InstructorAnalytics />} />
+        </Route>
       </Route>
 
-      {/* Admin Routes */}
-      <Route path="/admin" element={<AdminLayout />}>
-        <Route index element={<Navigate to="dashboard" replace />} />
-        <Route path="dashboard" element={<AdminDashboard />} />
-        <Route path="courses" element={<Courses />} />
-        <Route path="approvals" element={<CourseApprovals />} />
-        <Route path="review/:id" element={<CourseReview />} />
-        <Route path="users" element={<Users />} />
-        <Route path="instructors" element={<Instructors />} />
-        <Route path="organizations" element={<Organizations />} />
-        <Route path="categories" element={<Categories />} />
-        <Route path="reports" element={<Reports />} />
+      {/* Admin Routes (Requires super_admin role) */}
+      <Route element={<RoleRoute allowedRoles={['super_admin']} />}>
+        <Route path="/admin" element={<AdminLayout />}>
+          <Route index element={<Navigate to="dashboard" replace />} />
+          <Route path="dashboard" element={<AdminDashboard />} />
+          <Route path="courses" element={<Courses />} />
+          <Route path="approvals" element={<CourseApprovals />} />
+          <Route path="review/:id" element={<CourseReview />} />
+          <Route path="users" element={<Users />} />
+          <Route path="instructors" element={<Instructors />} />
+          <Route path="organizations" element={<Organizations />} />
+          <Route path="categories" element={<Categories />} />
+          <Route path="reports" element={<Reports />} />
+          <Route path="activity-logs" element={<ActivityLogs />} />
+          <Route path="assessments" element={<Assessments />} />
+          <Route path="settings" element={<Settings />} />
+          <Route path="notifications" element={<Notifications />} />
+        </Route>
       </Route>
 
       {/* Fallback */}

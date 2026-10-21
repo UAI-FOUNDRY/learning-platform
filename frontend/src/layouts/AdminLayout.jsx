@@ -2,6 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { Outlet } from 'react-router-dom';
 import Navbar from '../components/layout/Navbar';
 import Sidebar from '../components/layout/Sidebar';
+import DevPreviewBanner from '../components/common/DevPreviewBanner';
 
 export default function AdminLayout() {
   const [isSidebarCollapsed, setIsSidebarCollapsed] = useState(() => {
@@ -48,6 +49,7 @@ export default function AdminLayout() {
 
         {/* Page Content Container */}
         <div className="flex-1 p-4 sm:p-6 lg:p-8">
+          <DevPreviewBanner />
           <Outlet />
         </div>
       </div>

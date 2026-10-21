@@ -4,6 +4,7 @@ import Loader from '../../components/common/Loader';
 import EmptyState from '../../components/common/EmptyState';
 import Button from '../../components/common/Button';
 import ActivityChart from '../../components/admin/dashboard/ActivityChart';
+import { useDebounce } from '../../hooks/useDebounce';
 import {
   reportService,
   exportCourseAnalyticsToCSV
@@ -55,6 +56,7 @@ export default function Reports() {
 
   // Filters, Search, and Sorting
   const [searchQuery, setSearchQuery] = useState('');
+  const debouncedSearch = useDebounce(searchQuery, 150);
   const [categoryFilter, setCategoryFilter] = useState('ALL');
   const [completionFilter, setCompletionFilter] = useState('ALL');
   const [levelFilter, setLevelFilter] = useState('ALL');
@@ -112,8 +114,8 @@ export default function Reports() {
     let result = [...coursesData];
 
     // Search query matching title, instructor, or category
-    if (searchQuery.trim()) {
-      const q = searchQuery.toLowerCase().trim();
+    if (debouncedSearch.trim()) {
+      const q = debouncedSearch.toLowerCase().trim();
       result = result.filter(c => {
         const titleMatch = (c.title || '').toLowerCase().includes(q);
         const instructorMatch = (c.instructor || '').toLowerCase().includes(q);
@@ -162,17 +164,17 @@ export default function Reports() {
     });
 
     return result;
-  }, [coursesData, searchQuery, categoryFilter, levelFilter, completionFilter, sortBy]);
+  }, [coursesData, debouncedSearch, categoryFilter, levelFilter, completionFilter, sortBy]);
 
-  // Reset pagination when filters change
+  // Reset pagination when dropdown filters or page size change
   useEffect(() => {
     setCurrentPage(1);
-  }, [searchQuery, categoryFilter, levelFilter, completionFilter, sortBy, pageSize]);
+  }, [categoryFilter, levelFilter, completionFilter, sortBy, pageSize]);
 
   // Pagination calculation
   const totalItems = filteredCourses.length;
   const totalPages = Math.max(1, Math.ceil(totalItems / pageSize));
-  const safeCurrentPage = Math.min(currentPage, totalPages);
+  const safeCurrentPage = Math.max(1, Math.min(currentPage, totalPages));
   const startIndex = (safeCurrentPage - 1) * pageSize;
   const paginatedCourses = filteredCourses.slice(startIndex, startIndex + pageSize);
 
@@ -538,14 +540,20 @@ export default function Reports() {
             <input
               type="text"
               value={searchQuery}
-              onChange={(e) => setSearchQuery(e.target.value)}
+              onChange={(e) => {
+                setSearchQuery(e.target.value);
+                if (currentPage !== 1) setCurrentPage(1);
+              }}
               placeholder="Search by title, instructor, or category..."
               className="w-full pl-9 pr-8 py-2 text-xs sm:text-sm rounded-lg bg-[#EAE3DA] border border-[#B6AA9A] text-[#211E1A] placeholder-[#71675D] focus:outline-none focus:ring-2 focus:ring-[#D92D2D] transition-colors"
             />
             {searchQuery && (
               <button
                 type="button"
-                onClick={() => setSearchQuery('')}
+                onClick={() => {
+                  setSearchQuery('');
+                  if (currentPage !== 1) setCurrentPage(1);
+                }}
                 className="absolute inset-y-0 right-0 pr-2.5 flex items-center text-[#71675D] hover:text-[#211E1A]"
                 aria-label="Clear search query"
               >
@@ -620,6 +628,7 @@ export default function Reports() {
                   setCategoryFilter('ALL');
                   setCompletionFilter('ALL');
                   setLevelFilter('ALL');
+                  if (currentPage !== 1) setCurrentPage(1);
                 }}
                 className="py-2 px-2.5 text-xs font-semibold rounded-lg text-[#D92D2D] hover:bg-[#EAE3DA] transition-colors focus:outline-none"
               >
@@ -649,6 +658,7 @@ export default function Reports() {
                     setCategoryFilter('ALL');
                     setCompletionFilter('ALL');
                     setLevelFilter('ALL');
+                    if (currentPage !== 1) setCurrentPage(1);
                   }}
                   className="text-xs"
                 >

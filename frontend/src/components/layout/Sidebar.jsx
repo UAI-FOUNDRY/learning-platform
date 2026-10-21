@@ -50,6 +50,14 @@ function OrganizationsIcon({ className }) {
   );
 }
 
+function AssessmentsIcon({ className }) {
+  return (
+    <svg className={className} fill="none" stroke="currentColor" viewBox="0 0 24 24">
+      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2m-6 9l2 2 4-4m-6-3h6" />
+    </svg>
+  );
+}
+
 function ReportsIcon({ className }) {
   return (
     <svg className={className} fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -81,6 +89,7 @@ const iconMap = {
   '/admin/users': UsersIcon,
   '/admin/courses': CoursesIcon,
   '/admin/approvals': ApprovalsIcon,
+  '/admin/assessments': AssessmentsIcon,
   '/admin/categories': CategoriesIcon,
   '/admin/organizations': OrganizationsIcon,
   '/admin/reports': ReportsIcon,
@@ -137,6 +146,7 @@ export default function Sidebar({
         { to: '/admin/users', label: 'User Management', icon: UsersIcon, isExisting: true },
         { to: '/admin/courses', label: 'Course Management', icon: CoursesIcon, isExisting: true },
         { to: '/admin/approvals', label: 'Course Approvals', icon: ApprovalsIcon, isExisting: true },
+        { to: '/admin/assessments', label: 'Assessments', icon: AssessmentsIcon, isExisting: true },
         { to: '/admin/categories', label: 'Categories', icon: CategoriesIcon, isExisting: true },
         { to: '/admin/organizations', label: 'Organizations', icon: OrganizationsIcon, isExisting: true }
       ]
@@ -145,13 +155,13 @@ export default function Sidebar({
       title: 'Insights',
       items: [
         { to: '/admin/reports', label: 'Reports & Analytics', icon: ReportsIcon, isExisting: true },
-        { to: '/admin/activity-logs', label: 'Activity Logs', icon: LogsIcon, isExisting: false, status: 'Route pending' }
+        { to: '/admin/activity-logs', label: 'Activity Logs', icon: LogsIcon, isExisting: true }
       ]
     },
     {
       title: 'System',
       items: [
-        { to: '/admin/settings', label: 'Platform Settings', icon: SettingsIcon, isExisting: false, status: 'Route pending' }
+        { to: '/admin/settings', label: 'Platform Settings', icon: SettingsIcon, isExisting: true }
       ]
     }
   ];

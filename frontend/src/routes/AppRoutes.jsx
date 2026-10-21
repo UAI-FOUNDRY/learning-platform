@@ -33,6 +33,7 @@ import LearnerProfile from '../pages/learner/Profile';
 
 // Instructor Pages
 import InstructorDashboard from '../pages/instructor/Dashboard';
+import MyCourses from '../pages/instructor/MyCourses';
 import CreateCourse from '../pages/instructor/CreateCourse';
 import CourseEditor from '../pages/instructor/CourseEditor';
 import Curriculum from '../pages/instructor/Curriculum';
@@ -88,7 +89,9 @@ export default function AppRoutes() {
 
       {/* Instructor Routes */}
       <Route path="/instructor" element={<InstructorLayout />}>
+        <Route index element={<Navigate to="dashboard" replace />} />
         <Route path="dashboard" element={<InstructorDashboard />} />
+        <Route path="courses" element={<MyCourses />} />
         <Route path="courses/new" element={<CreateCourse />} />
         <Route path="courses/:id/edit" element={<CourseEditor />} />
         <Route path="courses/:id/curriculum" element={<Curriculum />} />

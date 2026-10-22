@@ -1,7 +1,8 @@
-import React, { useState, useRef, useEffect } from 'react';
+// frontend/src/components/layout/Navbar.jsx
+import React, { useState, useRef, useEffect, useContext } from 'react';
 import { Link, useNavigate, useLocation } from 'react-router-dom';
+import { AuthContext } from '../../context/AuthContext';
 import { useAuth } from '../../hooks/useAuth';
-import { authService } from '../../services/authService';
 import {
   getLocalNotifications,
   getLocalUnreadCount,
@@ -18,43 +19,59 @@ export default function Navbar({
   onOpenMobileSidebar,
   pageTitle
 }) {
-  const { user, logoutSession } = useAuth();
+  const auth = useContext(AuthContext);
+  const authHook = useAuth ? useAuth() : null;
+  const user = auth?.user || authHook?.user || null;
+  const logout = auth?.logout || authHook?.logoutSession || null;
+
   const navigate = useNavigate();
   const location = useLocation();
 
+  // Admin Top Bar State
   const [isProfileOpen, setIsProfileOpen] = useState(false);
   const [isNotificationsOpen, setIsNotificationsOpen] = useState(false);
   const [isSearchOpen, setIsSearchOpen] = useState(false);
-  const [isPublicMobileMenuOpen, setIsPublicMobileMenuOpen] = useState(false);
   const [searchQuery, setSearchQuery] = useState('');
-
-  const [notificationsList, setNotificationsList] = useState(() => getLocalNotifications());
-  const [unreadCount, setUnreadCount] = useState(() => getLocalUnreadCount());
+  const [notificationsList, setNotificationsList] = useState(() => {
+    try { return getLocalNotifications(); } catch { return []; }
+  });
+  const [unreadCount, setUnreadCount] = useState(() => {
+    try { return getLocalUnreadCount(); } catch { return 0; }
+  });
   const [notificationToast, setNotificationToast] = useState(null);
 
-  // Subscribe to reactive notification changes across tabs & components
+  // Public Navbar State
+  const [isScrolled, setIsScrolled] = useState(false);
+  const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
+
   useEffect(() => {
-    const handleUpdate = () => {
-      setNotificationsList(getLocalNotifications());
-      setUnreadCount(getLocalUnreadCount());
-    };
-    handleUpdate();
-    return subscribeToNotifications(handleUpdate);
+    const handleScroll = () => setIsScrolled(window.scrollY > 12);
+    window.addEventListener('scroll', handleScroll, { passive: true });
+    return () => window.removeEventListener('scroll', handleScroll);
   }, []);
 
-  // Toast feedback auto-dismiss
   useEffect(() => {
-    if (!notificationToast) return;
-    const t = setTimeout(() => setNotificationToast(null), 2500);
-    return () => clearTimeout(t);
-  }, [notificationToast]);
+    setMobileMenuOpen(false);
+  }, [location.pathname, location.hash]);
+
+  // Notifications subscription
+  useEffect(() => {
+    const handleUpdate = () => {
+      try {
+        setNotificationsList(getLocalNotifications());
+        setUnreadCount(getLocalUnreadCount());
+      } catch {}
+    };
+    try {
+      return subscribeToNotifications(handleUpdate);
+    } catch {}
+  }, []);
 
   const profileRef = useRef(null);
   const notificationsRef = useRef(null);
   const searchInputRef = useRef(null);
   const searchModalRef = useRef(null);
 
-  // Close dropdowns on click outside
   useEffect(() => {
     function handleClickOutside(event) {
       if (profileRef.current && !profileRef.current.contains(event.target)) {
@@ -68,32 +85,9 @@ export default function Navbar({
     return () => document.removeEventListener('mousedown', handleClickOutside);
   }, []);
 
-  // Handle Quick Search outside click and body scroll lock
+  // Global Ctrl+K / Cmd+K listener for admin search
   useEffect(() => {
-    if (!isSearchOpen) return;
-
-    const originalOverflow = document.body.style.overflow;
-    document.body.style.overflow = 'hidden';
-
-    function handleClickOutsideSearch(event) {
-      if (searchModalRef.current && !searchModalRef.current.contains(event.target)) {
-        setIsSearchOpen(false);
-      }
-    }
-
-    const timer = setTimeout(() => {
-      document.addEventListener('mousedown', handleClickOutsideSearch);
-    }, 10);
-
-    return () => {
-      clearTimeout(timer);
-      document.removeEventListener('mousedown', handleClickOutsideSearch);
-      document.body.style.overflow = originalOverflow;
-    };
-  }, [isSearchOpen]);
-
-  // Global Ctrl+K / Cmd+K listener for search
-  useEffect(() => {
+    if (variant !== 'admin') return;
     function handleKeyDown(e) {
       if ((e.ctrlKey || e.metaKey) && e.key.toLowerCase() === 'k') {
         e.preventDefault();
@@ -107,27 +101,24 @@ export default function Navbar({
     }
     window.addEventListener('keydown', handleKeyDown);
     return () => window.removeEventListener('keydown', handleKeyDown);
-  }, []);
-
-  useEffect(() => {
-    if (isSearchOpen && searchInputRef.current) {
-      setTimeout(() => searchInputRef.current?.focus(), 50);
-    }
-  }, [isSearchOpen]);
+  }, [variant]);
 
   const handleLogout = async () => {
     setIsProfileOpen(false);
-    if (logoutSession) {
-      await logoutSession();
+    if (logout) {
+      await logout();
     } else {
       localStorage.removeItem('access_token');
       localStorage.removeItem('token');
       localStorage.removeItem('refresh_token');
+      localStorage.removeItem('user');
     }
     navigate('/login');
   };
 
-  // If Admin variant, render the Super Admin Top Bar
+  // ==============================================================
+  // 1. SUPER ADMIN VARIANT TOP BAR (Teammate implementation)
+  // ==============================================================
   if (variant === 'admin') {
     const defaultTitle = location.pathname.includes('/approvals')
       ? 'Course Approvals'
@@ -170,7 +161,6 @@ export default function Navbar({
       <header className="sticky top-0 z-30 h-16 bg-[#E2DCD4] border-b border-[#B6AA9A] px-4 sm:px-6 flex items-center justify-between transition-colors duration-200">
         {/* Left: Sidebar Toggle & Breadcrumbs */}
         <div className="flex items-center gap-3 sm:gap-4">
-          {/* Mobile drawer toggle */}
           <button
             type="button"
             onClick={onOpenMobileSidebar}
@@ -182,7 +172,6 @@ export default function Navbar({
             </svg>
           </button>
 
-          {/* Desktop collapse toggle */}
           <button
             type="button"
             onClick={onToggleSidebar}
@@ -199,7 +188,6 @@ export default function Navbar({
             </svg>
           </button>
 
-          {/* Location / Breadcrumbs */}
           <div className="flex items-center text-[15px] font-medium">
             <span className="text-[#71675D] hidden sm:inline">Super Admin</span>
             <span className="text-[#B6AA9A] mx-2 hidden sm:inline">/</span>
@@ -209,9 +197,8 @@ export default function Navbar({
           </div>
         </div>
 
-        {/* Right: Search, Notifications, Profile (Theme Toggle Removed) */}
+        {/* Right: Search, Notifications, Profile */}
         <div className="flex items-center gap-2 sm:gap-3">
-          {/* Global Search Trigger */}
           <button
             type="button"
             onClick={() => setIsSearchOpen(true)}
@@ -227,19 +214,17 @@ export default function Navbar({
             </kbd>
           </button>
 
-          {/* Notifications Trigger */}
+          {/* Notifications Dropdown */}
           <div className="relative" ref={notificationsRef}>
             <button
               type="button"
               onClick={() => setIsNotificationsOpen(prev => !prev)}
               className="relative p-2 rounded-lg text-[#514940] hover:bg-[#C8BBAA]/50 focus:outline-none focus-visible:ring-2 focus-visible:ring-[#D92D2D] transition-colors"
               aria-label={unreadCount > 0 ? `View notifications, ${unreadCount} unread` : 'View notifications, no unread'}
-              aria-expanded={isNotificationsOpen}
             >
               <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M15 17h5l-1.405-1.405A2.032 2.032 0 0118 14.158V11a6.002 6.002 0 00-4-5.659V5a2 2 0 10-4 0v.341C7.67 6.165 6 8.388 6 11v3.159c0 .538-.214 1.055-.595 1.436L4 17h5m6 0v1a3 3 0 11-6 0v-1m6 0H9" />
               </svg>
-              {/* Alert Badge (visible only when there are unread alerts) */}
               {unreadCount > 0 && (
                 <span className="absolute top-1.5 right-1.5 flex h-2.5 w-2.5">
                   <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-[#D92D2D] opacity-75"></span>
@@ -248,515 +233,332 @@ export default function Navbar({
               )}
             </button>
 
-            {/* Notifications Dropdown */}
             {isNotificationsOpen && (
-              <div
-                className="absolute right-0 mt-2 w-80 sm:w-96 bg-[#EAE3DA] rounded-xl shadow-xl border border-[#B6AA9A] py-2 z-50 animate-fade-in"
-                role="menu"
-                aria-label="Notifications dropdown"
-              >
+              <div className="absolute right-0 mt-2 w-80 sm:w-96 bg-[#EAE3DA] rounded-xl shadow-xl border border-[#B6AA9A] py-2 z-50 animate-fade-in">
                 <div className="px-4 py-2 border-b border-[#B6AA9A] flex items-center justify-between">
                   <div className="flex items-center gap-2">
                     <span className="font-semibold text-sm text-[#211E1A]">Notifications</span>
                     <span className={`text-[11px] font-medium px-2 py-0.5 rounded-full border ${
-                      unreadCount > 0
-                        ? 'bg-[#E2DCD4] text-[#D92D2D] border-[#B6AA9A]'
-                        : 'bg-[#E2DCD4] text-[#71675D] border-[#B6AA9A]'
+                      unreadCount > 0 ? 'bg-[#E2DCD4] text-[#D92D2D] border-[#B6AA9A]' : 'bg-[#E2DCD4] text-[#71675D] border-[#B6AA9A]'
                     }`}>
                       {unreadCount > 0 ? `${unreadCount} new` : 'All caught up'}
                     </span>
                   </div>
                   <button
                     type="button"
-                    onClick={async (e) => {
-                      e.stopPropagation();
+                    onClick={async () => {
                       await markAllAsRead();
-                      setNotificationToast('All notifications marked as read');
+                      setNotificationsList(getLocalNotifications());
+                      setUnreadCount(0);
                     }}
-                    disabled={unreadCount === 0}
-                    className={`text-xs focus:outline-none focus-visible:ring-1 focus-visible:ring-[#D92D2D] rounded ${
-                      unreadCount > 0
-                        ? 'text-[#D92D2D] hover:underline cursor-pointer font-medium'
-                        : 'text-[#71675D] opacity-60 cursor-not-allowed'
-                    }`}
-                    aria-label="Mark all notifications as read"
+                    className="text-xs text-[#D92D2D] hover:underline"
                   >
                     Mark all read
                   </button>
                 </div>
-
-                <div className="divide-y divide-[#B6AA9A]/50 max-h-72 overflow-y-auto">
+                <div className="max-h-80 overflow-y-auto divide-y divide-[#B6AA9A]/40">
                   {notificationsList.length === 0 ? (
-                    <div className="px-4 py-6 text-center text-xs text-[#71675D]">
-                      No notifications available
-                    </div>
+                    <div className="py-8 text-center text-xs text-[#71675D]">No notifications</div>
                   ) : (
-                    notificationsList.slice(0, 6).map((item) => {
-                      const hasDestination = Boolean(item.link_url);
-
-                      return (
-                        <div
-                          key={item.id}
-                          role="menuitem"
-                          tabIndex={0}
-                          onClick={async () => {
-                            if (!item.is_read) {
-                              await markAsRead(item.id);
-                            }
-                            if (hasDestination) {
-                              setIsNotificationsOpen(false);
-                              navigate(item.link_url);
-                            } else {
-                              setNotificationToast(`Marked as read: ${item.title}`);
-                            }
-                          }}
-                          onKeyDown={async (e) => {
-                            if (e.key === 'Enter' || e.key === ' ') {
-                              e.preventDefault();
-                              if (!item.is_read) {
-                                await markAsRead(item.id);
-                              }
-                              if (hasDestination) {
-                                setIsNotificationsOpen(false);
-                                navigate(item.link_url);
-                              } else {
-                                setNotificationToast(`Marked as read: ${item.title}`);
-                              }
-                            }
-                          }}
-                          className={`w-full text-left px-4 py-3 transition-colors cursor-pointer focus:outline-none focus:bg-[#C8BBAA]/50 ${
-                            item.is_read
-                              ? 'hover:bg-[#C8BBAA]/30 opacity-75'
-                              : 'hover:bg-[#C8BBAA]/50 bg-[#E2DCD4]/40'
-                          }`}
-                        >
-                          <div className="flex items-start justify-between gap-2">
-                            <div className="flex items-start gap-2.5 min-w-0">
-                              <span
-                                className="h-2 w-2 rounded-full mt-1.5 flex-shrink-0"
-                                style={{ backgroundColor: item.indicatorColor || '#D92D2D' }}
-                              />
-                              <div className="min-w-0">
-                                <div className="flex items-center gap-1.5">
-                                  <p className={`text-xs truncate ${item.is_read ? 'text-[#211E1A] font-medium' : 'text-[#211E1A] font-bold'}`}>
-                                    {item.title}
-                                  </p>
-                                  {!item.is_read && (
-                                    <span className="w-1.5 h-1.5 rounded-full bg-[#D92D2D] flex-shrink-0" />
-                                  )}
-                                </div>
-                                <p className="text-xs text-[#514940] mt-0.5 line-clamp-2 leading-relaxed">
-                                  {item.message}
-                                </p>
-                                <div className="flex items-center gap-2 mt-1">
-                                  <span className="text-[10px] text-[#71675D]">
-                                    {formatRelativeTime(item.created_at)}
-                                  </span>
-                                  {hasDestination ? (
-                                    <span className="text-[10px] text-[#D92D2D] font-medium">
-                                      Open &rarr;
-                                    </span>
-                                  ) : (
-                                    <span className="text-[10px] text-[#71675D] italic">
-                                      Informational notice
-                                    </span>
-                                  )}
-                                </div>
-                              </div>
-                            </div>
-
-                            {/* Quick Mark Read Button (stops card navigation propagation) */}
-                            {!item.is_read && (
-                              <button
-                                type="button"
-                                onClick={async (e) => {
-                                  e.stopPropagation();
-                                  await markAsRead(item.id);
-                                  setNotificationToast('Notification marked as read');
-                                }}
-                                className="text-[#71675D] hover:text-[#D92D2D] p-1 rounded hover:bg-[#C8BBAA]/50 transition-colors flex-shrink-0 focus:outline-none focus-visible:ring-1 focus-visible:ring-[#D92D2D]"
-                                title="Mark as read"
-                                aria-label={`Mark "${item.title}" as read`}
-                              >
-                                <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M5 13l4 4L19 7" />
-                                </svg>
-                              </button>
-                            )}
-                          </div>
-                        </div>
-                      );
-                    })
+                    notificationsList.map(n => (
+                      <div key={n.id} className={`p-3 text-xs ${n.is_read ? 'opacity-70' : 'bg-[#C8BBAA]/20'}`}>
+                        <p className="font-semibold text-[#211E1A]">{n.title}</p>
+                        <p className="text-[#514940] mt-0.5">{n.message}</p>
+                      </div>
+                    ))
                   )}
-                </div>
-
-                {/* Dropdown Footer: View all notifications, Activity Logs, and Reports & Analytics */}
-                <div className="px-4 py-2.5 border-t border-[#B6AA9A] bg-[#E2DCD4]/70 space-y-2">
-                  <div className="flex items-center justify-between">
-                    <Link
-                      to="/admin/notifications"
-                      onClick={() => setIsNotificationsOpen(false)}
-                      className="text-xs font-bold text-[#D92D2D] hover:underline flex items-center gap-1.5 focus:outline-none focus-visible:ring-1 focus-visible:ring-[#D92D2D] rounded"
-                    >
-                      <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden="true">
-                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M15 17h5l-1.405-1.405A2.032 2.032 0 0118 14.158V11a6.002 6.002 0 00-4-5.659V5a2 2 0 10-4 0v.341C7.67 6.165 6 8.388 6 11v3.159c0 .538-.214 1.055-.595 1.436L4 17h5m6 0v1a3 3 0 11-6 0v-1m6 0H9" />
-                      </svg>
-                      <span>View all notifications</span>
-                    </Link>
-                  </div>
-
-                  <div className="pt-1.5 border-t border-[#B6AA9A]/50 flex items-center justify-between text-xs font-medium text-[#514940]">
-                    <Link
-                      to="/admin/activity-logs"
-                      onClick={() => setIsNotificationsOpen(false)}
-                      className="hover:text-[#D92D2D] hover:underline flex items-center gap-1 focus:outline-none focus-visible:ring-1 focus-visible:ring-[#D92D2D] rounded"
-                    >
-                      <span>View Activity Logs</span>
-                      <span aria-hidden="true">&rarr;</span>
-                    </Link>
-
-                    <Link
-                      to="/admin/reports"
-                      onClick={() => setIsNotificationsOpen(false)}
-                      className="hover:text-[#D92D2D] hover:underline flex items-center gap-1 focus:outline-none focus-visible:ring-1 focus-visible:ring-[#D92D2D] rounded"
-                    >
-                      <span>View Reports & Analytics</span>
-                      <span aria-hidden="true">&rarr;</span>
-                    </Link>
-                  </div>
                 </div>
               </div>
             )}
           </div>
 
-          {/* Profile Menu */}
+          {/* Admin Profile Dropdown */}
           <div className="relative" ref={profileRef}>
             <button
               type="button"
               onClick={() => setIsProfileOpen(prev => !prev)}
-              className="flex items-center gap-2 p-1 sm:px-2 sm:py-1 rounded-lg hover:bg-[#C8BBAA]/50 focus:outline-none focus-visible:ring-2 focus-visible:ring-[#D92D2D] transition-colors"
-              aria-label="User account menu"
-              aria-expanded={isProfileOpen}
+              className="flex items-center gap-2 p-1.5 rounded-lg hover:bg-[#C8BBAA]/50 focus:outline-none focus-visible:ring-2 focus-visible:ring-[#D92D2D] transition-colors"
             >
-              <div className="w-8 h-8 rounded-full bg-[#D92D2D] text-white flex items-center justify-center font-bold text-xs shadow-xs ring-1 ring-[#D92D2D]/30">
-                {user?.full_name
-                  ? user.full_name.split(' ').map(n => n[0]).join('').slice(0, 2).toUpperCase()
-                  : user?.name
-                  ? user.name.split(' ').map(n => n[0]).join('').slice(0, 2).toUpperCase()
-                  : 'SA'}
+              <div className="w-8 h-8 rounded-full bg-[#D92D2D] text-white flex items-center justify-center text-xs font-bold shadow-xs">
+                {user?.full_name ? user.full_name.charAt(0).toUpperCase() : 'A'}
               </div>
-              <div className="hidden sm:flex flex-col text-left">
-                <div className="flex items-center gap-1.5">
-                  <span className="text-xs font-semibold text-[#211E1A] leading-tight">
-                    {user?.full_name || user?.name || 'Super Admin'}
-                  </span>
-                  {user?.isDevPreview && (
-                    <span className="hidden md:inline-flex items-center px-1 py-0.2 rounded text-[9px] font-bold bg-amber-200 text-amber-900 border border-amber-300 uppercase">
-                      Preview
-                    </span>
-                  )}
-                </div>
-                <span className="text-[10px] text-[#71675D] leading-tight capitalize">
-                  {user?.isDevPreview ? 'Dev Preview Mode' : (user?.role ? user.role.replace(/_/g, ' ') : 'Platform Admin')}
-                </span>
-              </div>
-              <svg className="w-4 h-4 text-[#71675D] hidden sm:block" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M19 9l-7 7-7-7" />
-              </svg>
+              <span className="hidden sm:inline text-sm font-semibold text-[#211E1A]">
+                {user?.full_name || 'Super Admin'}
+              </span>
             </button>
 
-            {/* Profile Dropdown */}
             {isProfileOpen && (
-              <div className="absolute right-0 mt-2 w-64 bg-[#EAE3DA] rounded-xl shadow-xl border border-[#B6AA9A] py-2 z-50 animate-fade-in">
-                {/* User Identity Header */}
-                <div className="px-4 py-3 border-b border-[#B6AA9A]">
-                  <p className="text-xs font-medium text-[#71675D] uppercase tracking-wider">
-                    {user?.isDevPreview ? 'Local Preview Mode' : 'Signed in as'}
-                  </p>
-                  <p className="text-sm font-semibold text-[#211E1A] mt-0.5 truncate">
-                    {user?.full_name || user?.name || 'Administrator'}
-                  </p>
-                  <p className="text-xs text-[#514940] truncate">
-                    {user?.email || 'admin@learnspace.org'}
-                  </p>
-                  {user?.isDevPreview ? (
-                    <span className="mt-2 inline-flex items-center px-2 py-0.5 rounded text-[10px] font-bold bg-amber-200 text-amber-900 border border-amber-400 uppercase tracking-wider">
-                      ⚡ Dev Preview (Backend Offline)
-                    </span>
-                  ) : (
-                    <span className="mt-2 inline-flex items-center px-2 py-0.5 rounded text-[10px] font-medium bg-[#E2DCD4] text-[#D92D2D] border border-[#B6AA9A] capitalize">
-                      {user?.role ? user.role.replace(/_/g, ' ') : 'Super Administrator'}
-                    </span>
-                  )}
+              <div className="absolute right-0 mt-2 w-56 bg-[#EAE3DA] rounded-xl shadow-xl border border-[#B6AA9A] py-1 z-50">
+                <div className="px-4 py-2 border-b border-[#B6AA9A]">
+                  <p className="text-xs font-semibold text-[#211E1A]">{user?.full_name || 'Super Admin'}</p>
+                  <p className="text-[11px] text-[#71675D] truncate">{user?.email || 'admin@example.com'}</p>
                 </div>
-
-                <div className="py-1">
-                  <button
-                    type="button"
-                    onClick={() => {
-                      setIsProfileOpen(false);
-                      navigate('/learner/profile');
-                    }}
-                    className="w-full text-left px-4 py-2 text-xs text-[#211E1A] hover:bg-[#C8BBAA]/50 flex items-center gap-2"
-                  >
-                    <svg className="w-4 h-4 text-[#D92D2D]" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z" />
-                    </svg>
-                    My Profile
-                  </button>
-
-                  <button
-                    type="button"
-                    onClick={() => {
-                      setIsProfileOpen(false);
-                      navigate('/admin/settings');
-                    }}
-                    className="w-full text-left px-4 py-2 text-xs text-[#211E1A] hover:bg-[#C8BBAA]/50 flex items-center gap-2"
-                  >
-                    <svg className="w-4 h-4 text-[#D92D2D]" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M10.325 4.317c.426-1.756 2.924-1.756 3.35 0a1.724 1.724 0 002.573 1.066c1.543-.94 3.31.826 2.37 2.37a1.724 1.724 0 001.065 2.572c1.756.426 1.756 2.924 0 3.35a1.724 1.724 0 00-1.066 2.573c.94 1.543-.826 3.31-2.37 2.37a1.724 1.724 0 00-2.572 1.065c-.426 1.756-2.924 1.756-3.35 0a1.724 1.724 0 00-2.573-1.066c-1.543.94-3.31-.826-2.37-2.37a1.724 1.724 0 00-1.065-2.572c-1.756-.426-1.756-2.924 0-3.35a1.724 1.724 0 001.066-2.573c-.94-1.543.826-3.31 2.37-2.37.996.608 2.296.07 2.572-1.065z" />
-                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" />
-                    </svg>
-                    Account Settings
-                  </button>
-                </div>
-
-                <div className="border-t border-[#B6AA9A] pt-1">
-                  <button
-                    type="button"
-                    onClick={handleLogout}
-                    className="w-full text-left px-4 py-2 text-xs font-semibold text-[#B91C1C] hover:bg-red-50 flex items-center gap-2"
-                  >
-                    <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M17 16l4-4m0 0l-4-4m4 4H7m6 4v1a3 3 0 01-3 3H6a3 3 0 01-3-3V7a3 3 0 013-3h4a3 3 0 013 3v1" />
-                    </svg>
-                    Log Out
-                  </button>
-                </div>
+                <button
+                  type="button"
+                  onClick={handleLogout}
+                  className="w-full text-left px-4 py-2 text-xs font-medium text-[#D92D2D] hover:bg-[#C8BBAA]/50"
+                >
+                  Sign Out
+                </button>
               </div>
             )}
           </div>
         </div>
-
-        {/* Global Search Dialog Modal */}
-        {isSearchOpen && (
-          <div
-            className="fixed inset-0 z-50 flex items-start justify-center pt-20 px-4 bg-black/40 backdrop-blur-xs animate-fade-in"
-            onClick={(e) => {
-              if (e.target === e.currentTarget) {
-                setIsSearchOpen(false);
-              }
-            }}
-            role="dialog"
-            aria-modal="true"
-            aria-label="Quick search modal"
-          >
-            <div
-              ref={searchModalRef}
-              onClick={(e) => e.stopPropagation()}
-              className="bg-[#EAE3DA] rounded-xl shadow-2xl border border-[#B6AA9A] max-w-lg w-full overflow-hidden"
-            >
-              <div className="p-3 border-b border-[#B6AA9A] flex items-center gap-3">
-                <svg className="w-5 h-5 text-[#D92D2D]" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
-                </svg>
-                <input
-                  ref={searchInputRef}
-                  type="text"
-                  value={searchQuery}
-                  onChange={(e) => setSearchQuery(e.target.value)}
-                  placeholder="Jump to section or search portal..."
-                  className="w-full bg-transparent border-none text-sm text-[#211E1A] placeholder-[#71675D] focus:outline-none"
-                />
-                <button
-                  type="button"
-                  onClick={() => setIsSearchOpen(false)}
-                  className="text-xs text-[#71675D] hover:text-[#211E1A] px-1.5 py-0.5 rounded border border-[#B6AA9A]"
-                >
-                  ESC
-                </button>
-              </div>
-
-              <div className="max-h-64 overflow-y-auto p-2">
-                <p className="px-3 py-1.5 text-[11px] font-semibold text-[#71675D] uppercase tracking-wider">
-                  Admin Destinations
-                </p>
-                {quickLinks.length === 0 ? (
-                  <p className="px-3 py-4 text-xs text-center text-[#514940]">
-                    No matching destinations found
-                  </p>
-                ) : (
-                  quickLinks.map((link) => (
-                    <button
-                      key={link.to}
-                      type="button"
-                      onClick={() => {
-                        setIsSearchOpen(false);
-                        setSearchQuery('');
-                        navigate(link.to);
-                      }}
-                      className="w-full text-left px-3 py-2 rounded-lg hover:bg-[#C8BBAA]/50 flex items-center justify-between group transition-colors"
-                    >
-                      <div>
-                        <span className="text-xs font-medium text-[#211E1A] group-hover:text-[#D92D2D]">
-                          {link.label}
-                        </span>
-                        <p className="text-[11px] text-[#71675D]">{link.desc}</p>
-                      </div>
-                      <svg className="w-4 h-4 text-[#71675D] group-hover:text-[#D92D2D]" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M9 5l7 7-7 7" />
-                      </svg>
-                    </button>
-                  ))
-                )}
-              </div>
-            </div>
-          </div>
-        )}
-
-        {/* Top-bar Notification Feedback Toast */}
-        {notificationToast && (
-          <div
-            className="fixed top-18 right-6 z-50 bg-[#211E1A] text-[#EAE3DA] px-3.5 py-2 rounded-xl shadow-xl border border-[#71675D] text-xs font-medium flex items-center gap-2 animate-fade-in"
-            role="status"
-            aria-live="polite"
-          >
-            <svg className="w-4 h-4 text-emerald-400 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M5 13l4 4L19 7" />
-            </svg>
-            <span>{notificationToast}</span>
-          </div>
-        )}
       </header>
     );
   }
 
-  // Otherwise, render Public / Default Navbar with LearnSpace branding (No Theme Toggle)
+  // ==============================================================
+  // 2. PUBLIC LEARNSPACE NAVBAR (fab3a6b warm landing theme)
+  // ==============================================================
+  const handleSectionNavigation = (e, sectionId) => {
+    e.preventDefault();
+    setMobileMenuOpen(false);
+
+    if (location.pathname !== '/') {
+      navigate(`/#${sectionId}`);
+      setTimeout(() => {
+        const el = document.getElementById(sectionId);
+        if (el) el.scrollIntoView({ behavior: 'smooth' });
+      }, 100);
+    } else {
+      const el = document.getElementById(sectionId);
+      if (el) {
+        el.scrollIntoView({ behavior: 'smooth' });
+        window.history.replaceState(null, '', `/#${sectionId}`);
+      }
+    }
+  };
+
+  const getDashboardRoute = () => {
+    if (!user) return '/login';
+    const role = String(user.role || '').toLowerCase();
+    if (role.includes('admin')) return '/admin/dashboard';
+    if (role.includes('instructor') || role.includes('professor')) return '/instructor/dashboard';
+    return '/learner/dashboard';
+  };
+
   return (
-    <nav className="border-b border-[#B6AA9A] bg-[#E2DCD4] px-4 sm:px-6 py-3 flex items-center justify-between transition-colors duration-200">
-      {/* Brand & Logo */}
-      <Link to="/" className="flex items-center gap-2 text-xl font-bold text-[#211E1A] focus:outline-none focus-visible:ring-2 focus-visible:ring-[#D92D2D] rounded-lg">
-        {/* Education Cap Icon */}
-        <div className="w-8 h-8 rounded-lg bg-[#D92D2D] text-white flex items-center justify-center shadow-xs">
-          <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M12 14l9-5-9-5-9 5 9 5z" />
-            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M12 14l6.16-3.422a12.083 12.083 0 01.665 6.479A11.952 11.952 0 0012 20.055a11.952 11.952 0 00-6.824-2.998 12.078 12.078 0 01.665-6.479L12 14z" />
-          </svg>
-        </div>
-        <span className="tracking-tight text-lg sm:text-xl font-extrabold">LearnSpace</span>
-      </Link>
-
-      {/* Center / Navigation Links (Desktop) */}
-      <div className="hidden md:flex items-center gap-6 text-sm font-medium text-[#514940]">
-        <Link to="/courses" className="hover:text-[#D92D2D] transition-colors">
-          Explore Courses
-        </Link>
-        <Link to="/about" className="hover:text-[#D92D2D] transition-colors">
-          About
-        </Link>
-        <Link to="/contact" className="hover:text-[#D92D2D] transition-colors">
-          Contact
-        </Link>
-        <Link
-          to="/instructor/dashboard"
-          className="text-xs px-3 py-1.5 rounded-md bg-[#D92D2D] text-white font-bold hover:bg-[#B91C1C] transition-all shadow-xs"
-        >
-          Instructor Portal
-        </Link>
-        <Link
-          to="/admin/dashboard"
-          className="text-xs px-2.5 py-1.5 rounded-md bg-[#EAE3DA] text-[#D92D2D] border border-[#B6AA9A] font-semibold hover:border-[#D92D2D]/60 transition-colors"
-        >
-          Super Admin
-        </Link>
-      </div>
-
-      {/* Right: Auth Buttons (Theme Toggle Removed) */}
-      <div className="flex items-center gap-3">
-        <div className="hidden sm:flex items-center gap-3">
+    <header
+      className={`sticky top-0 z-50 w-full transition-all duration-200 ${
+        isScrolled
+          ? 'bg-mocha/95 backdrop-blur-md border-b border-cosmic shadow-warm-sm'
+          : 'bg-mocha border-b border-cosmic/70'
+      }`}
+    >
+      <nav
+        className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 h-18 sm:h-20 flex items-center justify-between"
+        aria-label="Global Navigation"
+      >
+        {/* Brand Logo */}
+        <div className="flex items-center gap-3">
           <Link
-            to="/login"
-            className="text-sm font-medium text-[#514940] hover:text-[#211E1A] px-3 py-2 rounded-lg transition-colors"
+            to="/"
+            className="flex items-center gap-2.5 group focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-burgundy rounded-xl p-1"
           >
-            Login
-          </Link>
-          <Link
-            to="/register"
-            className="text-sm font-medium bg-[#D92D2D] text-white hover:bg-[#B91C1C] px-4 py-2 rounded-lg transition-colors shadow-xs focus:outline-none focus-visible:ring-2 focus-visible:ring-[#D92D2D]"
-          >
-            Register
+            <div className="w-9 h-9 rounded-xl bg-burgundy flex items-center justify-center text-mocha shadow-warm-sm group-hover:bg-burgundy-hover transition-colors">
+              <svg
+                className="w-5 h-5 text-mocha stroke-[2.2]"
+                fill="none"
+                viewBox="0 0 24 24"
+                stroke="currentColor"
+                aria-hidden="true"
+              >
+                <path
+                  strokeLinecap="round"
+                  strokeLinejoin="round"
+                  d="M12 6.253v13m0-13C10.832 5.477 9.246 5 7.5 5S4.168 5.477 3 6.253v13C4.168 18.477 5.754 18 7.5 18s3.332.477 4.5 1.253m0-13C13.168 5.477 14.754 5 16.5 5c1.747 0 3.332.477 4.5 1.253v13C19.832 18.477 18.247 18 16.5 18c-1.746 0-3.332.477-4.5 1.253"
+                />
+              </svg>
+            </div>
+            <span className="text-xl font-serif font-bold text-burgundy tracking-tight">
+              Learn<span className="text-burgundy/80 italic ml-0.5">Space</span>
+            </span>
           </Link>
         </div>
 
-        {/* Mobile menu toggle */}
-        <button
-          type="button"
-          onClick={() => setIsPublicMobileMenuOpen(prev => !prev)}
-          className="md:hidden p-2 rounded-lg text-[#514940] hover:bg-[#C8BBAA]/50"
-          aria-label="Toggle navigation menu"
-        >
-          <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M4 6h16M4 12h16M4 18h16" />
-          </svg>
-        </button>
-      </div>
-
-      {/* Public Mobile Menu Drawer */}
-      {isPublicMobileMenuOpen && (
-        <div className="md:hidden fixed inset-x-0 top-16 bg-[#EAE3DA] border-b border-[#B6AA9A] p-4 flex flex-col gap-3 shadow-lg z-40">
+        {/* Desktop Navigation Links */}
+        <div className="hidden lg:flex items-center gap-1.5 xl:gap-3">
+          <Link
+            to="/"
+            className={`px-3.5 py-1.5 text-sm font-medium rounded-lg transition-all duration-200 ${
+              location.pathname === '/' && !location.hash
+                ? 'text-burgundy font-semibold border-b-2 border-burgundy bg-cosmic/10'
+                : 'text-brown-soft hover:text-burgundy hover:bg-cosmic/15'
+            }`}
+          >
+            Home
+          </Link>
           <Link
             to="/courses"
-            onClick={() => setIsPublicMobileMenuOpen(false)}
-            className="text-sm font-medium text-[#211E1A] py-1"
+            className={`px-3.5 py-1.5 text-sm font-medium rounded-lg transition-all duration-200 ${
+              location.pathname.startsWith('/courses')
+                ? 'text-burgundy font-semibold border-b-2 border-burgundy bg-cosmic/10'
+                : 'text-brown-soft hover:text-burgundy hover:bg-cosmic/15'
+            }`}
           >
             Explore Courses
           </Link>
+          <a
+            href="/#how-it-works"
+            onClick={(e) => handleSectionNavigation(e, 'how-it-works')}
+            className="px-3.5 py-1.5 text-sm font-medium rounded-lg text-brown-soft hover:text-burgundy hover:bg-cosmic/15 transition-all duration-200"
+          >
+            How It Works
+          </a>
+          <a
+            href="/#showcase"
+            onClick={(e) => handleSectionNavigation(e, 'showcase')}
+            className="px-3.5 py-1.5 text-sm font-medium rounded-lg text-brown-soft hover:text-burgundy hover:bg-cosmic/15 transition-all duration-200"
+          >
+            Workspace
+          </a>
           <Link
             to="/about"
-            onClick={() => setIsPublicMobileMenuOpen(false)}
-            className="text-sm font-medium text-[#211E1A] py-1"
+            className={`px-3.5 py-1.5 text-sm font-medium rounded-lg transition-all duration-200 ${
+              location.pathname === '/about'
+                ? 'text-burgundy font-semibold border-b-2 border-burgundy bg-cosmic/10'
+                : 'text-brown-soft hover:text-burgundy hover:bg-cosmic/15'
+            }`}
           >
             About
           </Link>
-          <Link
-            to="/contact"
-            onClick={() => setIsPublicMobileMenuOpen(false)}
-            className="text-sm font-medium text-[#211E1A] py-1"
+        </div>
+
+        {/* Desktop Auth Controls */}
+        <div className="hidden lg:flex items-center gap-4">
+          {user ? (
+            <>
+              <Link
+                to={getDashboardRoute()}
+                className="px-4 py-2 rounded-xl text-sm font-medium text-burgundy bg-mocha-surface border border-cosmic hover:border-burgundy hover:shadow-warm-sm active:scale-95 transition-all"
+              >
+                Dashboard
+              </Link>
+              <button
+                type="button"
+                onClick={handleLogout}
+                className="px-3 py-2 rounded-xl text-sm font-medium text-brown-soft hover:text-burgundy active:scale-95 transition-all"
+              >
+                Sign Out
+              </button>
+            </>
+          ) : (
+            <>
+              <Link
+                to="/login"
+                className="text-sm font-medium text-brown-soft hover:text-burgundy transition-colors hover:underline underline-offset-4"
+              >
+                Sign In
+              </Link>
+              <Link
+                to="/register"
+                className="nav-btn-primary active:scale-95"
+              >
+                Start Learning
+              </Link>
+            </>
+          )}
+        </div>
+
+        {/* Mobile Hamburger Button */}
+        <div className="flex lg:hidden">
+          <button
+            type="button"
+            onClick={() => setMobileMenuOpen((prev) => !prev)}
+            aria-expanded={mobileMenuOpen}
+            aria-label="Toggle navigation menu"
+            className="p-2.5 rounded-xl text-burgundy hover:bg-mocha-surface border border-transparent hover:border-cosmic focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-burgundy"
           >
-            Contact
+            {mobileMenuOpen ? (
+              <svg className="w-6 h-6 stroke-[2]" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                <path strokeLinecap="round" strokeLinejoin="round" d="M6 18L18 6M6 6l12 12" />
+              </svg>
+            ) : (
+              <svg className="w-6 h-6 stroke-[2]" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                <path strokeLinecap="round" strokeLinejoin="round" d="M4 6h16M4 12h16M4 18h16" />
+              </svg>
+            )}
+          </button>
+        </div>
+      </nav>
+
+      {/* Accessible Mobile Menu */}
+      {mobileMenuOpen && (
+        <div
+          className="lg:hidden bg-mocha-surface border-b border-cosmic px-4 pt-3 pb-6 space-y-1 shadow-warm-md"
+          role="region"
+          aria-label="Mobile Navigation"
+        >
+          <Link
+            to="/"
+            className="block px-3 py-2.5 rounded-xl text-base font-medium text-burgundy hover:bg-mocha transition-colors"
+          >
+            Home
           </Link>
           <Link
-            to="/instructor/dashboard"
-            onClick={() => setIsPublicMobileMenuOpen(false)}
-            className="text-sm font-bold text-[#D92D2D] py-1"
+            to="/courses"
+            className="block px-3 py-2.5 rounded-xl text-base font-medium text-burgundy hover:bg-mocha transition-colors"
           >
-            Instructor Portal
+            Explore Courses
           </Link>
+          <a
+            href="/#how-it-works"
+            onClick={(e) => handleSectionNavigation(e, 'how-it-works')}
+            className="block px-3 py-2.5 rounded-xl text-base font-medium text-burgundy hover:bg-mocha transition-colors"
+          >
+            How It Works
+          </a>
+          <a
+            href="/#showcase"
+            onClick={(e) => handleSectionNavigation(e, 'showcase')}
+            className="block px-3 py-2.5 rounded-xl text-base font-medium text-burgundy hover:bg-mocha transition-colors"
+          >
+            Workspace
+          </a>
           <Link
-            to="/admin/dashboard"
-            onClick={() => setIsPublicMobileMenuOpen(false)}
-            className="text-sm font-semibold text-[#514940] py-1"
+            to="/about"
+            className="block px-3 py-2.5 rounded-xl text-base font-medium text-burgundy hover:bg-mocha transition-colors"
           >
-            Super Admin Portal
+            About
           </Link>
-          <div className="border-t border-[#B6AA9A] pt-3 flex gap-2">
-            <Link
-              to="/login"
-              onClick={() => setIsPublicMobileMenuOpen(false)}
-              className="flex-1 text-center py-2 text-sm font-medium border border-[#B6AA9A] rounded-lg text-[#211E1A] bg-[#E2DCD4]"
-            >
-              Login
-            </Link>
-            <Link
-              to="/register"
-              onClick={() => setIsPublicMobileMenuOpen(false)}
-              className="flex-1 text-center py-2 text-sm font-medium bg-[#D92D2D] text-white rounded-lg"
-            >
-              Register
-            </Link>
+
+          <div className="pt-4 mt-3 border-t border-cosmic flex flex-col gap-2.5">
+            {user ? (
+              <>
+                <Link
+                  to={getDashboardRoute()}
+                  className="w-full py-2.5 px-4 rounded-xl text-center text-sm font-semibold text-burgundy bg-mocha border border-cosmic"
+                >
+                  Dashboard
+                </Link>
+                <button
+                  type="button"
+                  onClick={handleLogout}
+                  className="w-full py-2 px-4 rounded-xl text-center text-sm font-medium text-brown-soft hover:text-burgundy"
+                >
+                  Sign Out
+                </button>
+              </>
+            ) : (
+              <>
+                <Link
+                  to="/login"
+                  className="w-full py-2.5 px-4 rounded-xl text-center text-sm font-semibold text-burgundy border border-cosmic bg-mocha hover:bg-mocha-surface transition-colors"
+                >
+                  Sign In
+                </Link>
+                <Link
+                  to="/register"
+                  className="nav-btn-primary w-full text-center"
+                >
+                  Start Learning
+                </Link>
+              </>
+            )}
           </div>
         </div>
       )}
-    </nav>
+    </header>
   );
 }

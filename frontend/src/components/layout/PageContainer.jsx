@@ -1,9 +1,20 @@
 import React from 'react';
 
-export default function PageContainer({ title, children, className = '' }) {
+export default function PageContainer({ title, subtitle, className = '', children }) {
   return (
-    <main className={`max-w-7xl 2xl:max-w-[1536px] mx-auto px-2 sm:px-4 lg:px-6 py-4 sm:py-6 w-full ${className}`}>
-      {title && <h1 className="text-[28px] sm:text-[32px] font-bold text-[#211E1A] mb-8 leading-tight tracking-tight">{title}</h1>}
+    <main className={`max-w-7xl 2xl:max-w-[1536px] mx-auto px-4 sm:px-6 lg:px-8 py-6 sm:py-8 w-full ${className}`}>
+      {title && (
+        <div className="mb-6 sm:mb-8">
+          <h1 className="text-3xl sm:text-4xl font-serif font-bold text-burgundy tracking-tight">
+            {title}
+          </h1>
+          {subtitle && (
+            <p className="mt-2 text-base sm:text-lg text-brown-soft leading-relaxed max-w-2xl">
+              {subtitle}
+            </p>
+          )}
+        </div>
+      )}
       {children}
     </main>
   );

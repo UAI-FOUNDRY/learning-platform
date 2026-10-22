@@ -106,3 +106,30 @@
   border-color: rgba(217, 45, 45, 0.5);
   box-shadow: 0 10px 30px -6px rgba(33, 30, 26, 0.12);
 }
+
+
+/* frontend/src/styles/animations.css */
+/* Clean, subtle transitions with reduced-motion support */
+
+@keyframes authFadeIn {
+  from {
+    opacity: 0;
+    transform: translateY(8px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+.animate-auth-fade-in {
+  animation: authFadeIn 0.35s cubic-bezier(0.16, 1, 0.3, 1) forwards;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  *, *::before, *::after {
+    animation-duration: 0.001s !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.001s !important;
+  }
+}

@@ -1,3 +1,4 @@
+
 import React from 'react';
 import { Routes, Route, Navigate } from 'react-router-dom';
 
@@ -33,6 +34,7 @@ import LearnerProfile from '../pages/learner/Profile';
 
 // Instructor Pages
 import InstructorDashboard from '../pages/instructor/Dashboard';
+import MyCourses from '../pages/instructor/MyCourses';
 import CreateCourse from '../pages/instructor/CreateCourse';
 import CourseEditor from '../pages/instructor/CourseEditor';
 import Curriculum from '../pages/instructor/Curriculum';
@@ -74,46 +76,78 @@ export default function AppRoutes() {
         <Route path="/about" element={<About />} />
         <Route path="/contact" element={<Contact />} />
         <Route path="/login" element={<Login />} />
+        <Route
+          path="/instructor/login"
+          element={<Login defaultRole="instructor" />}
+        />
         <Route path="/register" element={<Register />} />
         <Route path="/forgot-password" element={<ForgotPassword />} />
         <Route path="/reset-password" element={<ResetPassword />} />
         <Route path="/verify-email" element={<VerifyEmail />} />
       </Route>
 
-      {/* Learner Routes (Requires authenticated session) */}
+      {/* Learner Routes - Requires authenticated session */}
       <Route element={<ProtectedRoute />}>
         <Route path="/learner" element={<LearnerLayout />}>
+          <Route
+            index
+            element={<Navigate to="dashboard" replace />}
+          />
           <Route path="dashboard" element={<LearnerDashboard />} />
           <Route path="my-learning" element={<MyLearning />} />
           <Route path="player/:courseId" element={<CoursePlayer />} />
           <Route path="quiz/:quizId" element={<Quiz />} />
-          <Route path="assignment/:assignmentId" element={<Assignment />} />
+          <Route
+            path="assignment/:assignmentId"
+            element={<Assignment />}
+          />
           <Route path="certificates" element={<Certificates />} />
           <Route path="wishlist" element={<Wishlist />} />
           <Route path="profile" element={<LearnerProfile />} />
         </Route>
       </Route>
 
-      {/* Instructor Routes (Requires instructor role, super_admin permitted) */}
-      <Route element={<RoleRoute allowedRoles={['instructor', 'super_admin']} />}>
+      {/* Instructor Routes - Instructor and Super Admin roles */}
+      <Route
+        element={
+          <RoleRoute allowedRoles={['instructor', 'super_admin']} />
+        }
+      >
         <Route path="/instructor" element={<InstructorLayout />}>
+          <Route
+            index
+            element={<Navigate to="dashboard" replace />}
+          />
           <Route path="dashboard" element={<InstructorDashboard />} />
+          <Route path="courses" element={<MyCourses />} />
           <Route path="courses/new" element={<CreateCourse />} />
           <Route path="courses/:id/edit" element={<CourseEditor />} />
           <Route path="courses/:id/curriculum" element={<Curriculum />} />
           <Route path="courses/:id/content" element={<ContentUpload />} />
-          <Route path="courses/:id/quiz-builder" element={<QuizBuilder />} />
-          <Route path="courses/:id/assignment-builder" element={<AssignmentBuilder />} />
-          <Route path="courses/:id/preview" element={<CoursePreview />} />
+          <Route
+            path="courses/:id/quiz-builder"
+            element={<QuizBuilder />}
+          />
+          <Route
+            path="courses/:id/assignment-builder"
+            element={<AssignmentBuilder />}
+          />
+          <Route
+            path="courses/:id/preview"
+            element={<CoursePreview />}
+          />
           <Route path="submissions" element={<Submissions />} />
           <Route path="analytics" element={<InstructorAnalytics />} />
         </Route>
       </Route>
 
-      {/* Admin Routes (Requires super_admin role) */}
+      {/* Admin Routes - Requires super_admin role */}
       <Route element={<RoleRoute allowedRoles={['super_admin']} />}>
         <Route path="/admin" element={<AdminLayout />}>
-          <Route index element={<Navigate to="dashboard" replace />} />
+          <Route
+            index
+            element={<Navigate to="dashboard" replace />}
+          />
           <Route path="dashboard" element={<AdminDashboard />} />
           <Route path="courses" element={<Courses />} />
           <Route path="approvals" element={<CourseApprovals />} />
@@ -130,7 +164,7 @@ export default function AppRoutes() {
         </Route>
       </Route>
 
-      {/* Fallback */}
+      {/* Fallback Route */}
       <Route path="*" element={<NotFound />} />
     </Routes>
   );

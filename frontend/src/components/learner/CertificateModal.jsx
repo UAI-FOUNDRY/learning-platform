@@ -1,9 +1,9 @@
 import React, { useState } from 'react';
 
-export default function CertificateModal({ certificate, onClose }) {
+export default function CertificateModal({ certificate, onClose, isOpen = true }) {
   const [copied, setCopied] = useState(false);
 
-  if (!certificate) return null;
+  if (!certificate || isOpen === false) return null;
 
   const handleCopyUrl = () => {
     navigator.clipboard?.writeText(certificate.verificationUrl || `https://learnspace.org/verify/${certificate.id}`);

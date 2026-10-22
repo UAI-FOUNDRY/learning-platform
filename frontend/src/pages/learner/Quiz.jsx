@@ -2,6 +2,49 @@ import React, { useState, useEffect } from 'react';
 import { useParams, Link, useNavigate } from 'react-router-dom';
 import { learnerService } from '../../services/learnerService';
 
+/**
+ * Animated Circular Score Meter
+ */
+function CircularScore({ percent, size = 96, strokeWidth = 8 }) {
+  const radius = (size - strokeWidth) / 2;
+  const circumference = radius * 2 * Math.PI;
+  const offset = circumference - (percent / 100) * circumference;
+  const isPassing = percent >= 85;
+
+  return (
+    <div className="relative inline-flex items-center justify-center shrink-0">
+      <svg width={size} height={size} className="transform -rotate-90">
+        <circle
+          cx={size / 2}
+          cy={size / 2}
+          r={radius}
+          stroke="#EAE3DA"
+          strokeWidth={strokeWidth}
+          fill="transparent"
+        />
+        <circle
+          cx={size / 2}
+          cy={size / 2}
+          r={radius}
+          stroke={isPassing ? '#059669' : '#D92D2D'}
+          strokeWidth={strokeWidth}
+          fill="transparent"
+          strokeDasharray={circumference}
+          strokeDashoffset={offset}
+          strokeLinecap="round"
+          className="transition-all duration-1000 ease-out"
+        />
+      </svg>
+      <div className="absolute flex flex-col items-center justify-center text-center">
+        <span className="text-xl font-black text-[#211E1A] leading-none">{percent}%</span>
+        <span className="text-[9px] font-bold text-[#71675D] uppercase mt-0.5">
+          {isPassing ? 'Passed' : 'Failed'}
+        </span>
+      </div>
+    </div>
+  );
+}
+
 export default function Quiz() {
   const { quizId } = useParams();
   const navigate = useNavigate();
@@ -13,6 +56,8 @@ export default function Quiz() {
   const [timeLeftSeconds, setTimeLeftSeconds] = useState(20 * 60); // 20 minutes
   const [isSubmitted, setIsSubmitted] = useState(false);
   const [result, setResult] = useState(null);
+  const [reviewFilter, setReviewFilter] = useState('all'); // 'all', 'correct', 'incorrect'
+  const [showSubmitConfirm, setShowSubmitConfirm] = useState(false);
 
   useEffect(() => {
     const loaded = learnerService.getQuizById(quizId || 'asm-101');
@@ -58,6 +103,7 @@ export default function Quiz() {
     const evalResult = learnerService.submitQuizAttempt(quiz?.id || 'asm-101', answers);
     setResult(evalResult);
     setIsSubmitted(true);
+    setShowSubmitConfirm(false);
   };
 
   const formatTimer = (seconds) => {
@@ -67,17 +113,23 @@ export default function Quiz() {
   };
 
   const answeredCount = Object.keys(answers).length;
+  const completionPercentage = questions.length > 0 ? Math.round((answeredCount / questions.length) * 100) : 0;
 
   return (
     <div className="max-w-4xl mx-auto space-y-6 animate-fade-in font-sans">
       {/* Quiz Top Bar */}
-      <div className="bg-white border-2 border-[#B6AA9A] rounded-2xl p-4 shadow-sm flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
+      <div className="bg-white border-2 border-[#B6AA9A] rounded-2xl p-4 sm:p-5 shadow-sm flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
         <div>
-          <span className="text-[10px] font-extrabold uppercase px-2 py-0.5 rounded bg-[#EAE3DA] text-[#211E1A] border border-[#B6AA9A]">
-            Interactive Course Quiz
-          </span>
+          <div className="flex items-center gap-2">
+            <span className="text-[10px] font-extrabold uppercase px-2.5 py-0.5 rounded bg-[#EAE3DA] text-[#211E1A] border border-[#B6AA9A]">
+              Course Evaluation Assessment
+            </span>
+            <span className="text-xs text-[#71675D]">
+              Passing Standard: 85% Required
+            </span>
+          </div>
           <h1 className="text-lg font-black text-[#211E1A] mt-1">
-            {quiz?.title || 'Concept Mastery Quiz'}
+            {quiz?.title || 'Concept Mastery Assessment'}
           </h1>
         </div>
 
@@ -95,8 +147,14 @@ export default function Quiz() {
 
             <button
               type="button"
-              onClick={handleSubmitQuiz}
-              className="px-4 py-2 bg-[#D92D2D] hover:bg-[#B91C1C] text-white rounded-xl text-xs font-black transition-all shadow-md hover:shadow-lg"
+              onClick={() => {
+                if (answeredCount < questions.length) {
+                  setShowSubmitConfirm(true);
+                } else {
+                  handleSubmitQuiz();
+                }
+              }}
+              className="px-4 py-2 bg-[#D92D2D] hover:bg-[#B91C1C] text-white rounded-xl text-xs font-black transition-all shadow-md hover:scale-102"
             >
               Submit Assessment
             </button>
@@ -104,30 +162,47 @@ export default function Quiz() {
         )}
       </div>
 
+      {/* Progress Strip during Quiz */}
+      {!isSubmitted && (
+        <div className="bg-white border border-[#B6AA9A] rounded-2xl p-3 shadow-2xs flex items-center justify-between gap-4 text-xs font-bold">
+          <div className="flex items-center gap-2">
+            <span className="text-[#514940]">Assessment Progress:</span>
+            <span className="text-[#211E1A]">{answeredCount} of {questions.length} answered</span>
+          </div>
+
+          <div className="flex-1 max-w-xs bg-[#EAE3DA] h-2 rounded-full overflow-hidden border border-[#B6AA9A]/50">
+            <div
+              className="bg-[#D92D2D] h-full rounded-full transition-all duration-300"
+              style={{ width: `${completionPercentage}%` }}
+            />
+          </div>
+
+          <span className="text-[#D92D2D] font-mono">{completionPercentage}%</span>
+        </div>
+      )}
+
       {/* ========================================================
           RESULTS / EVALUATION SCREEN
          ======================================================== */}
       {isSubmitted && result ? (
         <div className="space-y-6 animate-scale-in">
           {/* Score Header Card */}
-          <div className="bg-white border-2 border-[#B6AA9A] rounded-3xl p-6 sm:p-8 text-center space-y-4 shadow-sm">
-            <div className={`w-20 h-20 rounded-full mx-auto flex items-center justify-center text-4xl shadow-md ${
-              result.passed ? 'bg-emerald-100 text-emerald-800' : 'bg-red-100 text-red-800'
-            }`}>
-              {result.passed ? '🏆' : '⚠️'}
+          <div className="bg-white border-2 border-[#B6AA9A] rounded-3xl p-6 sm:p-8 text-center space-y-5 shadow-sm">
+            <div className="flex justify-center">
+              <CircularScore percent={result.scorePercent} />
             </div>
 
             <div>
               <span className={`px-3 py-1 rounded-full text-xs font-black uppercase ${
                 result.passed ? 'bg-emerald-100 text-emerald-900 border border-emerald-300' : 'bg-red-100 text-red-900 border border-red-300'
               }`}>
-                {result.passed ? 'Assessment Passed' : 'Passing Score Not Met'}
+                {result.passed ? 'Assessment Passed' : 'Passing Threshold Not Met (85% Needed)'}
               </span>
-              <h2 className="text-3xl font-black text-[#211E1A] mt-2">
+              <h2 className="text-2xl sm:text-3xl font-black text-[#211E1A] mt-2">
                 Score: {result.scorePercent}%
               </h2>
-              <p className="text-xs text-[#514940] mt-1">
-                You scored <span className="font-bold text-[#211E1A]">{result.earnedPoints}</span> out of <span className="font-bold text-[#211E1A]">{result.totalMarks} points</span> ({result.correctCount} of {result.totalQuestions} questions correct).
+              <p className="text-xs text-[#514940] mt-1 max-w-md mx-auto">
+                You earned <span className="font-bold text-[#211E1A]">{result.earnedPoints}</span> out of <span className="font-bold text-[#211E1A]">{result.totalMarks} points</span> ({result.correctCount} of {result.totalQuestions} questions correct).
               </p>
             </div>
 
@@ -143,7 +218,7 @@ export default function Quiz() {
                 }}
                 className="px-5 py-2.5 bg-white hover:bg-[#EAE3DA] text-[#211E1A] border border-[#B6AA9A] rounded-xl text-xs font-bold transition-colors"
               >
-                ↺ Retake Quiz
+                ↺ Retake Assessment
               </button>
 
               <Link
@@ -157,56 +232,95 @@ export default function Quiz() {
 
           {/* Question Breakdown Review */}
           <div className="space-y-4">
-            <h3 className="text-base font-black text-[#211E1A]">
-              Detailed Question Review & Explanations
-            </h3>
+            <div className="flex items-center justify-between border-b border-[#B6AA9A]/60 pb-3">
+              <h3 className="text-base font-black text-[#211E1A]">
+                Question-by-Question Diagnostic Review
+              </h3>
 
-            {result.breakdown.map((item, idx) => (
-              <div
-                key={item.questionId || idx}
-                className={`p-5 rounded-2xl border-2 shadow-2xs space-y-3 bg-white ${
-                  item.isCorrect ? 'border-emerald-300' : 'border-red-300'
-                }`}
-              >
-                <div className="flex items-center justify-between">
-                  <span className="text-xs font-bold text-[#514940]">
-                    Question {idx + 1}
-                  </span>
-                  <span className={`px-2 py-0.5 rounded text-[11px] font-black ${
-                    item.isCorrect ? 'bg-emerald-100 text-emerald-900' : 'bg-red-100 text-red-900'
-                  }`}>
-                    {item.isCorrect ? '✓ Correct (+Points)' : '✗ Incorrect'}
-                  </span>
-                </div>
+              {/* Review Filter */}
+              <div className="flex items-center gap-1 bg-[#EAE3DA] p-1 rounded-xl border border-[#B6AA9A] text-xs font-bold">
+                <button
+                  type="button"
+                  onClick={() => setReviewFilter('all')}
+                  className={`px-3 py-1 rounded-lg transition-colors ${
+                    reviewFilter === 'all' ? 'bg-white text-[#211E1A] shadow-2xs' : 'text-[#514940]'
+                  }`}
+                >
+                  All ({result.breakdown.length})
+                </button>
+                <button
+                  type="button"
+                  onClick={() => setReviewFilter('correct')}
+                  className={`px-3 py-1 rounded-lg transition-colors ${
+                    reviewFilter === 'correct' ? 'bg-white text-emerald-800 shadow-2xs' : 'text-[#514940]'
+                  }`}
+                >
+                  Correct ({result.correctCount})
+                </button>
+                <button
+                  type="button"
+                  onClick={() => setReviewFilter('incorrect')}
+                  className={`px-3 py-1 rounded-lg transition-colors ${
+                    reviewFilter === 'incorrect' ? 'bg-white text-red-800 shadow-2xs' : 'text-[#514940]'
+                  }`}
+                >
+                  Incorrect ({result.breakdown.length - result.correctCount})
+                </button>
+              </div>
+            </div>
 
-                <p className="text-sm font-bold text-[#211E1A]">
-                  {item.prompt}
-                </p>
-
-                <div className="space-y-1.5 text-xs">
-                  <p className="text-[#514940]">
-                    <span className="font-bold">Your Answer: </span>
-                    <span className={item.isCorrect ? 'text-emerald-700 font-bold' : 'text-red-700 line-through'}>
-                      {item.selected || 'No answer selected'}
+            {result.breakdown
+              .filter(item => {
+                if (reviewFilter === 'correct') return item.isCorrect;
+                if (reviewFilter === 'incorrect') return !item.isCorrect;
+                return true;
+              })
+              .map((item, idx) => (
+                <div
+                  key={item.questionId || idx}
+                  className={`p-5 rounded-2xl border-2 shadow-2xs space-y-3 bg-white transition-all ${
+                    item.isCorrect ? 'border-emerald-300' : 'border-red-300'
+                  }`}
+                >
+                  <div className="flex items-center justify-between">
+                    <span className="text-xs font-bold text-[#514940]">
+                      Question Review
                     </span>
+                    <span className={`px-2.5 py-0.5 rounded-full text-[11px] font-black ${
+                      item.isCorrect ? 'bg-emerald-100 text-emerald-900 border border-emerald-300' : 'bg-red-100 text-red-900 border border-red-300'
+                    }`}>
+                      {item.isCorrect ? '✓ Correct (+Points)' : '✗ Incorrect'}
+                    </span>
+                  </div>
+
+                  <p className="text-sm font-bold text-[#211E1A]">
+                    {item.prompt}
                   </p>
 
-                  {!item.isCorrect && (
+                  <div className="space-y-1 text-xs">
                     <p className="text-[#514940]">
-                      <span className="font-bold">Correct Answer: </span>
-                      <span className="text-emerald-700 font-bold">{item.correctAnswer}</span>
+                      <span className="font-bold">Your Selection: </span>
+                      <span className={item.isCorrect ? 'text-emerald-700 font-bold' : 'text-red-700 font-bold'}>
+                        {item.selected || 'No answer selected'}
+                      </span>
                     </p>
+
+                    {!item.isCorrect && (
+                      <p className="text-[#514940]">
+                        <span className="font-bold">Standard Correct Key: </span>
+                        <span className="text-emerald-700 font-bold">{item.correctAnswer}</span>
+                      </p>
+                    )}
+                  </div>
+
+                  {item.explanation && (
+                    <div className="p-3 bg-[#EAE3DA]/60 border border-[#B6AA9A] rounded-xl text-xs text-[#514940] leading-relaxed">
+                      <span className="font-bold text-[#211E1A]">Theoretical Justification: </span>
+                      {item.explanation}
+                    </div>
                   )}
                 </div>
-
-                {item.explanation && (
-                  <div className="p-3 bg-[#EAE3DA]/60 border border-[#B6AA9A] rounded-xl text-xs text-[#514940] leading-relaxed">
-                    <span className="font-bold text-[#211E1A]">Rationale: </span>
-                    {item.explanation}
-                  </div>
-                )}
-              </div>
-            ))}
+              ))}
           </div>
         </div>
       ) : (
@@ -223,17 +337,17 @@ export default function Quiz() {
               </span>
 
               <div className="flex items-center gap-3">
-                <span className="text-xs font-bold text-[#D92D2D]">
+                <span className="text-xs font-bold text-[#D92D2D] bg-red-50 border border-red-200 px-2 py-0.5 rounded">
                   {currentQuestion?.points || 20} pts
                 </span>
                 <button
                   type="button"
                   onClick={handleToggleFlag}
-                  className={`text-xs font-bold flex items-center gap-1 ${
-                    flagged[currentQuestion?.id] ? 'text-amber-700' : 'text-[#71675D] hover:text-[#211E1A]'
+                  className={`text-xs font-bold flex items-center gap-1 transition-colors ${
+                    flagged[currentQuestion?.id] ? 'text-amber-700 font-black' : 'text-[#71675D] hover:text-[#211E1A]'
                   }`}
                 >
-                  <span>{flagged[currentQuestion?.id] ? '🚩 Flagged' : '🏳️ Flag'}</span>
+                  <span>{flagged[currentQuestion?.id] ? '🚩 Marked for Review' : '🏳️ Mark for Review'}</span>
                 </button>
               </div>
             </div>
@@ -254,12 +368,20 @@ export default function Quiz() {
                     onClick={() => handleSelectOption(opt)}
                     className={`w-full text-left p-4 rounded-2xl border-2 text-xs sm:text-sm font-semibold transition-all flex items-center justify-between ${
                       isSelected
-                        ? 'bg-[#EAE3DA] border-[#D92D2D] text-[#211E1A] shadow-xs'
-                        : 'bg-white border-[#B6AA9A] text-[#514940] hover:border-[#211E1A]'
+                        ? 'bg-[#EAE3DA] border-[#D92D2D] text-[#211E1A] shadow-xs scale-101'
+                        : 'bg-white border-[#B6AA9A] text-[#514940] hover:border-[#211E1A] hover:bg-[#FAF8F5]'
                     }`}
                   >
-                    <span>{opt}</span>
-                    <span className={`w-5 h-5 rounded-full border flex items-center justify-center text-xs ${
+                    <div className="flex items-center gap-3 pr-2">
+                      <span className={`w-6 h-6 rounded-lg border flex items-center justify-center font-mono text-xs font-bold shrink-0 ${
+                        isSelected ? 'bg-[#D92D2D] text-white border-[#D92D2D]' : 'bg-[#EAE3DA] text-[#514940] border-[#B6AA9A]'
+                      }`}>
+                        {String.fromCharCode(65 + oIdx)}
+                      </span>
+                      <span>{opt}</span>
+                    </div>
+
+                    <span className={`w-5 h-5 rounded-full border flex items-center justify-center text-xs shrink-0 ${
                       isSelected
                         ? 'border-[#D92D2D] bg-[#D92D2D] text-white'
                         : 'border-[#B6AA9A] bg-transparent'
@@ -279,7 +401,7 @@ export default function Quiz() {
                 disabled={currentQuestionIndex === 0}
                 className="px-4 py-2 bg-[#EAE3DA] hover:bg-[#D6D0C8] disabled:opacity-40 text-[#211E1A] rounded-xl text-xs font-bold transition-colors"
               >
-                ← Previous
+                ← Previous Question
               </button>
 
               <button
@@ -288,7 +410,7 @@ export default function Quiz() {
                 disabled={currentQuestionIndex === questions.length - 1}
                 className="px-5 py-2 bg-[#211E1A] hover:bg-black disabled:opacity-40 text-white rounded-xl text-xs font-bold transition-colors shadow-2xs"
               >
-                Next →
+                Next Question →
               </button>
             </div>
           </div>
@@ -327,7 +449,7 @@ export default function Quiz() {
               })}
             </div>
 
-            <div className="pt-3 border-t border-[#B6AA9A]/50 text-[11px] space-y-1 text-[#71675D]">
+            <div className="pt-3 border-t border-[#B6AA9A]/50 text-[11px] space-y-1.5 text-[#71675D]">
               <div className="flex items-center gap-2">
                 <span className="w-3 h-3 rounded bg-emerald-100 border border-emerald-300 inline-block" />
                 <span>Answered ({answeredCount})</span>
@@ -340,6 +462,39 @@ export default function Quiz() {
                 <span className="w-3 h-3 rounded bg-[#211E1A] inline-block" />
                 <span>Current Question</span>
               </div>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Confirmation Modal for Unanswered Questions */}
+      {showSubmitConfirm && (
+        <div className="fixed inset-0 z-50 bg-black/50 backdrop-blur-xs flex items-center justify-center p-4 animate-fade-in">
+          <div className="bg-white border-2 border-[#B6AA9A] rounded-3xl max-w-sm w-full p-6 shadow-2xl text-center space-y-4 animate-scale-in">
+            <div className="w-14 h-14 rounded-2xl bg-amber-100 text-amber-800 mx-auto flex items-center justify-center text-2xl">
+              ⚠️
+            </div>
+            <div>
+              <h3 className="text-lg font-black text-[#211E1A]">Unanswered Questions!</h3>
+              <p className="text-xs text-[#514940] mt-1 leading-relaxed">
+                You have {questions.length - answeredCount} unanswered questions remaining. Do you still wish to finalize your score submission?
+              </p>
+            </div>
+            <div className="pt-2 flex items-center gap-3">
+              <button
+                type="button"
+                onClick={() => setShowSubmitConfirm(false)}
+                className="flex-1 py-2.5 rounded-xl bg-[#EAE3DA] text-[#211E1A] text-xs font-bold"
+              >
+                Continue Quiz
+              </button>
+              <button
+                type="button"
+                onClick={handleSubmitQuiz}
+                className="flex-1 py-2.5 rounded-xl bg-[#D92D2D] text-white text-xs font-bold"
+              >
+                Submit Now
+              </button>
             </div>
           </div>
         </div>

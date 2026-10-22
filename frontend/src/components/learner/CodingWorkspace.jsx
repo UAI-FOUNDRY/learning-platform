@@ -2,8 +2,7 @@ import React, { useState } from 'react';
 
 export default function CodingWorkspace({
   lesson,
-  onCompleteExercise,
-  onOpenAIAssistant
+  onCompleteExercise
 }) {
   const initialCode = lesson?.starterCode || `# Python Coding Workspace\ndef solution():\n    return "Hello LearnSpace"\n\nprint(solution())`;
   const [code, setCode] = useState(initialCode);
@@ -34,7 +33,6 @@ export default function CodingWorkspace({
   };
 
   const handleFormatCode = () => {
-    // Simple indentation beautification simulation
     const formatted = code
       .split('\n')
       .map(line => line.trimEnd())
@@ -124,7 +122,7 @@ export default function CodingWorkspace({
 
         {/* Toolbar Controls */}
         <div className="flex items-center gap-2 flex-wrap">
-          {/* Multi-language Selector (PROJECT.md §11) */}
+          {/* Multi-language Selector */}
           <select
             value={selectedLanguage}
             onChange={(e) => setSelectedLanguage(e.target.value)}
@@ -135,18 +133,6 @@ export default function CodingWorkspace({
             <option value="C++ 20">C++ 20</option>
             <option value="SQL (PostgreSQL 16)">SQL (PostgreSQL 16)</option>
           </select>
-
-          {/* AI Helper Trigger (PROJECT.md §25) */}
-          {onOpenAIAssistant && (
-            <button
-              type="button"
-              onClick={onOpenAIAssistant}
-              className="px-2.5 py-1 bg-[#D92D2D]/20 hover:bg-[#D92D2D]/40 text-red-300 rounded-lg border border-[#D92D2D]/60 transition-colors flex items-center gap-1 text-[11px] font-sans font-bold"
-            >
-              <span>🤖</span>
-              <span>AI Code Assist</span>
-            </button>
-          )}
 
           <button
             type="button"

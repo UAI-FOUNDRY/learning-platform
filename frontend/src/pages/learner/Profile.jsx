@@ -10,6 +10,8 @@ export default function LearnerProfile() {
   const [department, setDepartment] = useState('');
   const [targetHours, setTargetHours] = useState(8);
   const [selectedInterests, setSelectedInterests] = useState([]);
+  const [avatar, setAvatar] = useState('SC');
+  const [reminderTime, setReminderTime] = useState('19:00');
   const [emailReminders, setEmailReminders] = useState(true);
   const [streakAlerts, setStreakAlerts] = useState(true);
   const [savedSuccess, setSavedSuccess] = useState(false);
@@ -23,6 +25,7 @@ export default function LearnerProfile() {
       setDepartment(profile.department || '');
       setTargetHours(profile.learningGoal?.weeklyTargetHours || 8);
       setSelectedInterests(profile.interests || ['Artificial Intelligence', 'Cloud Systems']);
+      setAvatar(profile.avatar || 'SC');
     }
   }, [profile]);
 
@@ -36,6 +39,8 @@ export default function LearnerProfile() {
     'Cybersecurity',
     'Data Science'
   ];
+
+  const avatarChoices = ['SC', '🎓', '🔬', '💻', '🧠', '⚡', '📚'];
 
   const handleToggleInterest = (interest) => {
     if (selectedInterests.includes(interest)) {
@@ -53,6 +58,7 @@ export default function LearnerProfile() {
       headline,
       institution,
       department,
+      avatar,
       learningGoal: {
         ...profile.learningGoal,
         weeklyTargetHours: Number(targetHours)
@@ -81,19 +87,40 @@ export default function LearnerProfile() {
         {/* Profile Card */}
         <div className="bg-white border-2 border-[#B6AA9A] rounded-3xl p-6 sm:p-8 shadow-sm space-y-6">
           <div className="flex flex-col sm:flex-row items-center gap-6 pb-6 border-b border-[#B6AA9A]/50">
-            <div className="w-20 h-20 rounded-2xl bg-[#211E1A] text-white flex items-center justify-center font-black text-2xl shadow-md shrink-0">
-              {profile?.avatar || 'SC'}
+            <div className="flex flex-col items-center gap-2 shrink-0">
+              <div className="w-20 h-20 rounded-2xl bg-[#211E1A] text-white flex items-center justify-center font-black text-2xl shadow-md">
+                {avatar}
+              </div>
+
+              {/* Avatar Switcher */}
+              <div className="flex items-center gap-1">
+                {avatarChoices.map((av) => (
+                  <button
+                    key={av}
+                    type="button"
+                    onClick={() => setAvatar(av)}
+                    className={`w-6 h-6 rounded-md text-[11px] font-bold border transition-transform hover:scale-110 ${
+                      avatar === av ? 'bg-[#D92D2D] text-white border-[#D92D2D]' : 'bg-[#EAE3DA] text-[#211E1A] border-[#B6AA9A]'
+                    }`}
+                  >
+                    {av}
+                  </button>
+                ))}
+              </div>
             </div>
 
-            <div className="text-center sm:text-left space-y-1">
-              <h2 className="text-xl font-black text-[#211E1A]">{profile?.name}</h2>
-              <p className="text-xs text-[#514940]">{profile?.headline}</p>
+            <div className="text-center sm:text-left space-y-1.5 flex-1 min-w-0">
+              <h2 className="text-xl font-black text-[#211E1A]">{name || 'Sarah Chen'}</h2>
+              <p className="text-xs text-[#514940] truncate">{headline || 'Computer Science Scholar'}</p>
               <div className="flex flex-wrap items-center justify-center sm:justify-start gap-2 pt-1">
                 <span className="px-2.5 py-0.5 rounded-full text-[10px] font-black bg-[#EAE3DA] text-[#211E1A] border border-[#B6AA9A]">
                   {profile?.stats?.rankTitle || 'Advanced Scholar'}
                 </span>
                 <span className="text-xs text-[#71675D]">
                   🔥 {profile?.stats?.streakDays || 12}-Day Streak
+                </span>
+                <span className="text-xs text-[#D92D2D] font-bold">
+                  ⭐ {profile?.stats?.totalPoints || 1450} XP
                 </span>
               </div>
             </div>
@@ -173,14 +200,14 @@ export default function LearnerProfile() {
           </div>
         </div>
 
-        {/* Weekly Goals & Target Hours */}
+        {/* Weekly Goals & Target Hours Slider */}
         <div className="bg-white border-2 border-[#B6AA9A] rounded-3xl p-6 sm:p-8 shadow-sm space-y-4">
           <div className="flex items-center justify-between border-b border-[#B6AA9A]/50 pb-3">
             <div>
               <h3 className="text-base font-black text-[#211E1A]">Study Targets & Dedication</h3>
               <p className="text-xs text-[#514940]">Set weekly goals to maintain your streak and pace</p>
             </div>
-            <span className="text-lg font-black text-[#D92D2D]">
+            <span className="text-base sm:text-lg font-black text-[#D92D2D] bg-red-50 border border-red-200 px-3 py-1 rounded-xl">
               {targetHours} Hours / Week
             </span>
           </div>
@@ -193,7 +220,7 @@ export default function LearnerProfile() {
               step="1"
               value={targetHours}
               onChange={(e) => setTargetHours(e.target.value)}
-              className="w-full accent-[#D92D2D]"
+              className="w-full accent-[#D92D2D] cursor-pointer"
             />
             <div className="flex justify-between text-[11px] text-[#71675D]">
               <span>Casual (2h/wk)</span>
@@ -218,10 +245,10 @@ export default function LearnerProfile() {
                   key={interest}
                   type="button"
                   onClick={() => handleToggleInterest(interest)}
-                  className={`px-3 py-1.5 rounded-xl text-xs font-bold transition-all border ${
+                  className={`px-3 py-1.5 rounded-xl text-xs font-bold border transition-all hover:scale-102 ${
                     isSelected
-                      ? 'bg-[#211E1A] text-white border-[#211E1A] shadow-xs'
-                      : 'bg-[#EAE3DA] text-[#514940] border-[#B6AA9A] hover:text-[#211E1A]'
+                      ? 'bg-[#211E1A] text-white border-black shadow-xs'
+                      : 'bg-[#EAE3DA]/60 hover:bg-[#EAE3DA] text-[#514940] border-[#B6AA9A]'
                   }`}
                 >
                   {isSelected ? `✓ ${interest}` : `+ ${interest}`}
@@ -231,61 +258,69 @@ export default function LearnerProfile() {
           </div>
         </div>
 
-        {/* Notification Preferences */}
-        <div className="bg-white border-2 border-[#B6AA9A] rounded-3xl p-6 shadow-sm space-y-4">
+        {/* Notifications & Study Reminders */}
+        <div className="bg-white border-2 border-[#B6AA9A] rounded-3xl p-6 sm:p-8 shadow-sm space-y-4">
           <h3 className="text-base font-black text-[#211E1A] border-b border-[#B6AA9A]/50 pb-2">
-            Notification Preferences
+            Study Reminders & Streak Protection
           </h3>
 
           <div className="space-y-3">
-            <label className="flex items-center gap-3 cursor-pointer">
-              <input
-                type="checkbox"
-                checked={streakAlerts}
-                onChange={(e) => setStreakAlerts(e.target.checked)}
-                className="rounded text-[#D92D2D] focus:ring-[#D92D2D] border-[#B6AA9A]"
-              />
-              <span className="text-xs text-[#211E1A] font-semibold">
-                Daily Study Streak Reminders (Keeps your streak protected)
-              </span>
+            <label className="flex items-center justify-between p-3 bg-[#EAE3DA]/40 rounded-xl border border-[#B6AA9A] cursor-pointer">
+              <div>
+                <p className="text-xs font-bold text-[#211E1A]">Daily Study Rhythm Reminder</p>
+                <p className="text-[11px] text-[#71675D]">Alert if you haven't studied by scheduled hour</p>
+              </div>
+              <div className="flex items-center gap-3">
+                <input
+                  type="time"
+                  value={reminderTime}
+                  onChange={(e) => setReminderTime(e.target.value)}
+                  className="px-2 py-1 bg-white border border-[#B6AA9A] rounded text-xs font-mono"
+                />
+                <input
+                  type="checkbox"
+                  checked={streakAlerts}
+                  onChange={(e) => setStreakAlerts(e.target.checked)}
+                  className="w-4 h-4 accent-[#D92D2D] rounded"
+                />
+              </div>
             </label>
 
-            <label className="flex items-center gap-3 cursor-pointer">
+            <label className="flex items-center justify-between p-3 bg-[#EAE3DA]/40 rounded-xl border border-[#B6AA9A] cursor-pointer">
+              <div>
+                <p className="text-xs font-bold text-[#211E1A]">Assignment & Quiz Deadline Alerts</p>
+                <p className="text-[11px] text-[#71675D]">Receive reminders 48 hours prior to deadline</p>
+              </div>
               <input
                 type="checkbox"
                 checked={emailReminders}
                 onChange={(e) => setEmailReminders(e.target.checked)}
-                className="rounded text-[#D92D2D] focus:ring-[#D92D2D] border-[#B6AA9A]"
+                className="w-4 h-4 accent-[#D92D2D] rounded"
               />
-              <span className="text-xs text-[#211E1A] font-semibold">
-                Upcoming Assessment and Assignment Deadline Alerts
-              </span>
             </label>
           </div>
         </div>
 
-        {/* Save Button */}
-        <div className="flex items-center justify-end gap-3 pt-2">
+        {/* Save Actions Bar */}
+        <div className="flex items-center justify-between pt-2">
+          {savedSuccess ? (
+            <span className="text-xs font-extrabold text-emerald-800 bg-emerald-100 px-3 py-1.5 rounded-xl border border-emerald-300 animate-slide-up flex items-center gap-1.5">
+              <span>✓</span>
+              <span>Profile Preferences Saved Successfully!</span>
+            </span>
+          ) : (
+            <span className="text-xs text-[#71675D]">All changes take effect across your portals immediately.</span>
+          )}
+
           <button
             type="submit"
-            className="px-6 py-3 bg-[#D92D2D] hover:bg-[#B91C1C] text-white rounded-xl text-xs font-black transition-all shadow-md hover:shadow-lg flex items-center gap-2"
+            className="px-6 py-3 bg-[#D92D2D] hover:bg-[#B91C1C] text-white rounded-xl text-xs font-black transition-all shadow-md hover:scale-102 flex items-center gap-2"
           >
-            <span>Save Profile Settings</span>
+            <span>Save Profile & Goals</span>
             <span>✓</span>
           </button>
         </div>
       </form>
-
-      {/* Success Notification */}
-      {savedSuccess && (
-        <div className="fixed bottom-6 right-6 z-50 bg-[#211E1A] text-white border-2 border-emerald-500 rounded-2xl p-4 shadow-2xl flex items-center gap-3 animate-slide-up">
-          <span className="text-2xl">✓</span>
-          <div>
-            <p className="font-extrabold text-xs">Profile Updated Successfully</p>
-            <p className="text-[10px] text-stone-300">Your preferences have been saved locally.</p>
-          </div>
-        </div>
-      )}
     </div>
   );
 }

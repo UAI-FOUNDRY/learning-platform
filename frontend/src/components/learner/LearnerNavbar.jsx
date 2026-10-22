@@ -3,6 +3,7 @@ import { Link, useNavigate } from 'react-router-dom';
 import { useAuth } from '../../hooks/useAuth';
 import { learnerService } from '../../services/learnerService';
 import LeaderboardModal from './LeaderboardModal';
+import StreakBreakdownModal from './StreakBreakdownModal';
 
 export default function LearnerNavbar({ onOpenMobileSidebar }) {
   const { user, logoutSession } = useAuth();
@@ -231,42 +232,11 @@ export default function LearnerNavbar({ onOpenMobileSidebar }) {
       />
 
       {/* Streak Info Modal */}
-      {showStreakModal && (
-        <div className="fixed inset-0 z-50 bg-black/50 backdrop-blur-xs flex items-center justify-center p-4 animate-fade-in">
-          <div className="bg-white border-2 border-[#B6AA9A] rounded-2xl max-w-sm w-full p-6 shadow-2xl text-center space-y-4 animate-scale-in">
-            <div className="w-16 h-16 rounded-2xl bg-orange-100 text-orange-600 border border-orange-300 mx-auto flex items-center justify-center text-3xl shadow-xs">
-              🔥
-            </div>
-            <div>
-              <h3 className="text-xl font-extrabold text-[#211E1A]">
-                {profile?.stats?.streakDays || 12}-Day Study Streak!
-              </h3>
-              <p className="mt-1 text-xs text-[#514940] leading-relaxed">
-                You’ve logged in, completed lectures, or practiced code for {profile?.stats?.streakDays || 12} consecutive days.
-              </p>
-            </div>
-            <div className="p-3 bg-[#EAE3DA] rounded-xl border border-[#B6AA9A] text-xs space-y-1.5">
-              <div className="flex justify-between font-bold text-[#211E1A]">
-                <span>Weekly Goal:</span>
-                <span>{profile?.learningGoal?.completedHoursThisWeek || 6.5}h / {profile?.learningGoal?.weeklyTargetHours || 8}h</span>
-              </div>
-              <div className="w-full bg-[#D6D0C8] h-2 rounded-full overflow-hidden">
-                <div
-                  className="bg-[#D92D2D] h-full rounded-full transition-all duration-500"
-                  style={{ width: `${Math.min(100, Math.round(((profile?.learningGoal?.completedHoursThisWeek || 6.5) / (profile?.learningGoal?.weeklyTargetHours || 8)) * 100))}%` }}
-                />
-              </div>
-            </div>
-            <button
-              type="button"
-              onClick={() => setShowStreakModal(false)}
-              className="w-full py-2.5 px-4 bg-[#211E1A] hover:bg-black text-white rounded-xl text-xs font-bold transition-colors"
-            >
-              Keep Learning
-            </button>
-          </div>
-        </div>
-      )}
+      <StreakBreakdownModal
+        isOpen={showStreakModal}
+        onClose={() => setShowStreakModal(false)}
+        streakDays={profile?.stats?.streakDays || 12}
+      />
 
       {/* Quick Search Modal */}
       {isSearchOpen && (

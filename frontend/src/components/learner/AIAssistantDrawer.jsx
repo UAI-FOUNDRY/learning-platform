@@ -1,11 +1,22 @@
 import React, { useState } from 'react';
 
+/**
+ * AIAssistantDrawer
+ * -------------------------------------------------------------
+ * NOTE: As per mentor guidelines, AI features are deferred to a 
+ * future phase (PROJECT.md Phase 7 Roadmap) and are NOT enabled 
+ * in the active learner workflow yet.
+ * 
+ * This component is kept as a reference implementation for when 
+ * the mentor approves AI integration.
+ * -------------------------------------------------------------
+ */
 export default function AIAssistantDrawer({ isOpen, onClose, contextLesson }) {
   const [messages, setMessages] = useState([
     {
       id: 'msg-1',
       sender: 'ai',
-      text: `Hello Sarah! I'm your LearnSpace AI Academic & Coding Assistant. I can explain complex formulas, diagnose Python execution errors, or provide progressive hints for your current lesson: "${contextLesson?.title || 'Course Lecture'}". How can I assist you?`
+      text: `Hello! I'm your LearnSpace Academic & Coding Assistant preview. I can explain complex formulas, diagnose execution errors, or provide progressive hints for: "${contextLesson?.title || 'Course Lecture'}". How can I assist you?`
     }
   ]);
   const [inputText, setInputText] = useState('');
@@ -79,7 +90,7 @@ export default function AIAssistantDrawer({ isOpen, onClose, contextLesson }) {
             </div>
             <div>
               <h3 className="font-extrabold text-sm leading-none">LearnSpace AI Scholar</h3>
-              <p className="text-[10px] text-stone-300 mt-0.5">Contextual Learning & Coding Co-pilot</p>
+              <p className="text-[10px] text-stone-300 mt-0.5">Contextual Learning & Coding Co-pilot (Preview)</p>
             </div>
           </div>
 

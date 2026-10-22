@@ -43,6 +43,8 @@ export function notifyReviewsChanged() {
   }
 }
 
+import { recordAuditEvent } from '../services/activityLogService';
+
 /**
  * Saves a review decision in localStorage and notifies subscribers.
  */
@@ -53,6 +55,41 @@ export function saveStoredReview(courseId, reviewData) {
     map[courseId] = reviewData;
     localStorage.setItem(REVIEWS_STORAGE_KEY, JSON.stringify(map));
     notifyReviewsChanged();
+
+    // Audit log integration (best-effort)
+    try {
+      const decision = String(reviewData?.status || reviewData?.decision || '').toLowerCase();
+      let action = 'course.reviewed';
+      let outcome = 'success';
+      if (decision.includes('approv')) {
+        action = 'course.approved';
+        outcome = 'success';
+      } else if (decision.includes('reject')) {
+        action = 'course.rejected';
+        outcome = 'failed';
+      } else if (decision.includes('change') || decision.includes('request')) {
+        action = 'course.changes_requested';
+        outcome = 'warning';
+      }
+
+      recordAuditEvent({
+        action,
+        category: 'courses',
+        target: {
+          type: 'Course',
+          id: courseId,
+          name: reviewData?.title || reviewData?.courseTitle || `Course #${courseId}`
+        },
+        description: `Super Admin review decision: ${reviewData?.status || reviewData?.decision || 'Reviewed'} for course ${courseId}.`,
+        status: outcome,
+        changes: {
+          decision: reviewData?.status || reviewData?.decision,
+          comments: reviewData?.comments || reviewData?.feedback || reviewData?.reason || null
+        }
+      });
+    } catch {
+      // Best-effort audit logging
+    }
   } catch {
     // Ignore storage quota errors in dev mode
   }
@@ -69,6 +106,25 @@ export function deleteStoredReview(courseId) {
       delete map[courseId];
       localStorage.setItem(REVIEWS_STORAGE_KEY, JSON.stringify(map));
       notifyReviewsChanged();
+
+      try {
+        recordAuditEvent({
+          action: 'course.review_reset',
+          category: 'courses',
+          target: {
+            type: 'Course',
+            id: courseId,
+            name: `Course #${courseId}`
+          },
+          description: `Super Admin reset local session review decision for course ${courseId}; submission returned to pending approvals queue.`,
+          status: 'warning',
+          changes: {
+            decision: 'Reset to Pending Review'
+          }
+        });
+      } catch {
+        // Best-effort audit logging
+      }
     }
   } catch {
     // Ignore errors in dev mode
@@ -117,7 +173,8 @@ export function subscribeToReviewUpdates(callback) {
  * Resolves a course's current status given its original record and any saved review decision.
  * Mapping rules:
  * - Approved / Published -> 'Published'
- * - Changes Requested / Rejected / Reject -> 'Changes Requested'
+ * - Rejected / Reject -> 'Rejected'
+ * - Changes Requested -> 'Changes Requested'
  * - Pending Review / Pending -> 'Pending Review'
  * - No saved decision -> retain original course status
  */
@@ -133,12 +190,14 @@ export function resolveCourseStatus(course, review) {
     return 'Published';
   }
 
+  if (decision === 'rejected' || decision === 'reject' || status === 'rejected') {
+    return 'Rejected';
+  }
+
   if (
     decision === 'changes requested' ||
-    decision === 'rejected' ||
-    decision === 'reject' ||
-    status === 'changes requested' ||
-    status === 'rejected'
+    decision === 'request_changes' ||
+    status === 'changes requested'
   ) {
     return 'Changes Requested';
   }
@@ -176,3 +235,27 @@ export function applyCourseReviews(courses, reviewsMap) {
   const map = reviewsMap && typeof reviewsMap === 'object' ? reviewsMap : getStoredReviews();
   return courses.map(course => applyCourseReview(course, map[course.id]));
 }
+
+/**
+ * Evaluates whether a course is currently awaiting administrative review,
+ * taking into account any saved review decision.
+ * Returns true only for courses whose resolved status is 'Pending Review' or 'Pending'.
+ * Excludes drafts, published, archived, changes requested, and rejected courses.
+ */
+export function isCoursePending(course, review) {
+  if (!course) return false;
+  const status = resolveCourseStatus(course, review);
+  const normalized = (status || '').trim().toLowerCase().replace(/_/g, ' ');
+  return normalized === 'pending review' || normalized === 'pending';
+}
+
+/**
+ * Filters an array of courses to only those currently pending administrative review,
+ * resolving against stored dev-session reviews or a provided reviews map.
+ */
+export function getPendingCourses(courses, reviewsMap) {
+  if (!Array.isArray(courses)) return [];
+  const map = reviewsMap && typeof reviewsMap === 'object' ? reviewsMap : getStoredReviews();
+  return courses.filter(course => isCoursePending(course, map[course.id]));
+}
+

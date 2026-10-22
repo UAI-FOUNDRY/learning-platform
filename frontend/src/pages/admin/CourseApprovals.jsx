@@ -8,7 +8,9 @@ import {
   getStoredReviews,
   clearStoredReviews,
   resolveCourseStatus,
-  subscribeToReviewUpdates
+  subscribeToReviewUpdates,
+  isCoursePending,
+  getPendingCourses
 } from '../../services/adminService';
 import { mockPendingApprovals } from '../../data/mockDashboardData';
 
@@ -103,17 +105,13 @@ export default function CourseApprovals() {
 
   // Filter out any courses that have been marked published or changes requested in local dev session
   const pendingCourses = useMemo(() => {
-    return rawCourses.filter(c => {
-      const decision = sessionReviews[c.id];
-      const resolved = resolveCourseStatus(c, decision);
-      return resolved === 'Pending Review';
-    });
+    return getPendingCourses(rawCourses, sessionReviews);
   }, [rawCourses, sessionReviews]);
 
   const reviewedCount = useMemo(() => {
     return rawCourses.filter(c => {
       const decision = sessionReviews[c.id];
-      return decision && resolveCourseStatus(c, decision) !== 'Pending Review';
+      return decision && !isCoursePending(c, decision);
     }).length;
   }, [rawCourses, sessionReviews]);
 

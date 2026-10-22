@@ -62,7 +62,7 @@ export default function PendingApprovalsPanel({ pendingCourses = [] }) {
                       Pending
                     </span>
                     <span className="text-[11px] text-[#71675D] font-mono">
-                      {course.submittedAt ? new Date(course.submittedAt).toLocaleDateString(undefined, { month: 'short', day: 'numeric' }) : 'Recent'}
+                      {(course.submittedAt || course.createdAt) ? new Date(course.submittedAt || course.createdAt).toLocaleDateString(undefined, { month: 'short', day: 'numeric' }) : 'Recent'}
                     </span>
                   </div>
                 </div>

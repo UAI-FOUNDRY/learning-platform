@@ -1,17 +1,54 @@
 import { apiClient } from './api';
+import { mockCourses } from '../data/mockCourses';
+import { mockPendingApprovals } from '../data/mockDashboardData';
+import { getStoredReview, applyCourseReview, applyCourseReviews } from '../utils/courseReviews';
 
 export const courseService = {
   /**
    * Retrieves public catalog or filtered courses list.
    * Endpoint: GET /api/v1/courses (params: category_id, instructor_id, status, search, level, language, page, limit)
    */
-  getCourses: (params = {}) => apiClient('/courses', { params }),
+  getCourses: async (params = {}) => {
+    try {
+      const data = await apiClient('/courses', { params });
+      if (Array.isArray(data) && data.length > 0) {
+        return applyCourseReviews(data);
+      }
+    } catch {
+      // Backend not yet running; fallback to mock dataset with stored reviews
+    }
+    return applyCourseReviews(mockCourses);
+  },
 
   /**
    * Retrieves details for a specific course by ID.
-   * Endpoint: GET /api/v1/courses/{id}
+   * Endpoint: GET /api/v1/courses/{id} with graceful mock fallback and stored review overlay.
    */
-  getCourseById: (id) => apiClient(`/courses/${id}`),
+  getCourseById: async (id) => {
+    if (!id) return null;
+    try {
+      const data = await apiClient(`/courses/${id}`);
+      if (data && typeof data === 'object' && data.id) {
+        const review = getStoredReview(id);
+        return applyCourseReview(data, review);
+      }
+    } catch {
+      // Backend unavailable; fallback to local mock records
+    }
+
+    const fromMock = mockCourses.find(c => String(c.id) === String(id));
+    const fromPending = mockPendingApprovals.find(c => String(c.id) === String(id));
+    if (!fromMock && !fromPending) return null;
+
+    const base = {
+      ...(fromPending || {}),
+      ...(fromMock || {}),
+      modulesCount: fromMock?.modulesCount || fromPending?.modulesCount || 0
+    };
+
+    const review = getStoredReview(id);
+    return applyCourseReview(base, review);
+  },
 
   /**
    * Creates a new course in draft status.

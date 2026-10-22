@@ -2,6 +2,14 @@ import React, { useState, useRef, useEffect } from 'react';
 import { Link, useNavigate, useLocation } from 'react-router-dom';
 import { useAuth } from '../../hooks/useAuth';
 import { authService } from '../../services/authService';
+import {
+  getLocalNotifications,
+  getLocalUnreadCount,
+  markAsRead,
+  markAllAsRead,
+  subscribeToNotifications,
+  formatRelativeTime
+} from '../../services/notificationService';
 
 export default function Navbar({
   variant = 'public',
@@ -10,7 +18,7 @@ export default function Navbar({
   onOpenMobileSidebar,
   pageTitle
 }) {
-  const { user, setUser, setIsAuthenticated } = useAuth();
+  const { user, logoutSession } = useAuth();
   const navigate = useNavigate();
   const location = useLocation();
 
@@ -20,9 +28,31 @@ export default function Navbar({
   const [isPublicMobileMenuOpen, setIsPublicMobileMenuOpen] = useState(false);
   const [searchQuery, setSearchQuery] = useState('');
 
+  const [notificationsList, setNotificationsList] = useState(() => getLocalNotifications());
+  const [unreadCount, setUnreadCount] = useState(() => getLocalUnreadCount());
+  const [notificationToast, setNotificationToast] = useState(null);
+
+  // Subscribe to reactive notification changes across tabs & components
+  useEffect(() => {
+    const handleUpdate = () => {
+      setNotificationsList(getLocalNotifications());
+      setUnreadCount(getLocalUnreadCount());
+    };
+    handleUpdate();
+    return subscribeToNotifications(handleUpdate);
+  }, []);
+
+  // Toast feedback auto-dismiss
+  useEffect(() => {
+    if (!notificationToast) return;
+    const t = setTimeout(() => setNotificationToast(null), 2500);
+    return () => clearTimeout(t);
+  }, [notificationToast]);
+
   const profileRef = useRef(null);
   const notificationsRef = useRef(null);
   const searchInputRef = useRef(null);
+  const searchModalRef = useRef(null);
 
   // Close dropdowns on click outside
   useEffect(() => {
@@ -37,6 +67,30 @@ export default function Navbar({
     document.addEventListener('mousedown', handleClickOutside);
     return () => document.removeEventListener('mousedown', handleClickOutside);
   }, []);
+
+  // Handle Quick Search outside click and body scroll lock
+  useEffect(() => {
+    if (!isSearchOpen) return;
+
+    const originalOverflow = document.body.style.overflow;
+    document.body.style.overflow = 'hidden';
+
+    function handleClickOutsideSearch(event) {
+      if (searchModalRef.current && !searchModalRef.current.contains(event.target)) {
+        setIsSearchOpen(false);
+      }
+    }
+
+    const timer = setTimeout(() => {
+      document.addEventListener('mousedown', handleClickOutsideSearch);
+    }, 10);
+
+    return () => {
+      clearTimeout(timer);
+      document.removeEventListener('mousedown', handleClickOutsideSearch);
+      document.body.style.overflow = originalOverflow;
+    };
+  }, [isSearchOpen]);
 
   // Global Ctrl+K / Cmd+K listener for search
   useEffect(() => {
@@ -62,14 +116,15 @@ export default function Navbar({
   }, [isSearchOpen]);
 
   const handleLogout = async () => {
-    try {
-      await authService.logout().catch(() => {});
-    } finally {
+    setIsProfileOpen(false);
+    if (logoutSession) {
+      await logoutSession();
+    } else {
+      localStorage.removeItem('access_token');
       localStorage.removeItem('token');
-      if (setUser) setUser(null);
-      if (setIsAuthenticated) setIsAuthenticated(false);
-      navigate('/login');
+      localStorage.removeItem('refresh_token');
     }
+    navigate('/login');
   };
 
   // If Admin variant, render the Super Admin Top Bar
@@ -84,19 +139,31 @@ export default function Navbar({
       ? 'Organization Management'
       : location.pathname.includes('/reports')
       ? 'Reports & Analytics'
+      : location.pathname.includes('/activity-logs')
+      ? 'Activity Logs'
+      : location.pathname.includes('/assessments')
+      ? 'Assessments Management'
       : location.pathname.includes('/review')
       ? 'Course Quality Review'
+      : location.pathname.includes('/settings')
+      ? 'Platform Settings'
+      : location.pathname.includes('/notifications')
+      ? 'Notifications'
       : 'Dashboard';
 
     const currentTitle = pageTitle || defaultTitle;
 
     const quickLinks = [
       { label: 'Admin Dashboard', to: '/admin/dashboard', desc: 'Platform overview and stats' },
+      { label: 'Notifications', to: '/admin/notifications', desc: 'System alerts, approvals, and administrative notifications' },
       { label: 'Course Approvals Queue', to: '/admin/approvals', desc: 'Review pending course submissions' },
       { label: 'User Management', to: '/admin/users', desc: 'Manage learners, professors, and roles' },
+      { label: 'Assessments Management', to: '/admin/assessments', desc: 'Quizzes, assignments, and test governance' },
       { label: 'Categories Taxonomy', to: '/admin/categories', desc: 'Browse course classification' },
       { label: 'Organizations', to: '/admin/organizations', desc: 'University and corporate partners' },
-      { label: 'Reports & Analytics', to: '/admin/reports', desc: 'Platform usage & enrollment reports' }
+      { label: 'Reports & Analytics', to: '/admin/reports', desc: 'Platform usage & enrollment reports' },
+      { label: 'Activity Logs', to: '/admin/activity-logs', desc: 'Audit trail of administrative actions and platform events' },
+      { label: 'Platform Settings', to: '/admin/settings', desc: 'Configure platform parameters, notifications & maintenance' }
     ].filter(item => item.label.toLowerCase().includes(searchQuery.toLowerCase()) || item.desc.toLowerCase().includes(searchQuery.toLowerCase()));
 
     return (
@@ -166,83 +233,197 @@ export default function Navbar({
               type="button"
               onClick={() => setIsNotificationsOpen(prev => !prev)}
               className="relative p-2 rounded-lg text-[#514940] hover:bg-[#C8BBAA]/50 focus:outline-none focus-visible:ring-2 focus-visible:ring-[#D92D2D] transition-colors"
-              aria-label="View notifications, 3 unread"
+              aria-label={unreadCount > 0 ? `View notifications, ${unreadCount} unread` : 'View notifications, no unread'}
               aria-expanded={isNotificationsOpen}
             >
               <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M15 17h5l-1.405-1.405A2.032 2.032 0 0118 14.158V11a6.002 6.002 0 00-4-5.659V5a2 2 0 10-4 0v.341C7.67 6.165 6 8.388 6 11v3.159c0 .538-.214 1.055-.595 1.436L4 17h5m6 0v1a3 3 0 11-6 0v-1m6 0H9" />
               </svg>
-              {/* Alert Badge */}
-              <span className="absolute top-1.5 right-1.5 flex h-2.5 w-2.5">
-                <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-[#D92D2D] opacity-75"></span>
-                <span className="relative inline-flex rounded-full h-2.5 w-2.5 bg-[#D92D2D]"></span>
-              </span>
+              {/* Alert Badge (visible only when there are unread alerts) */}
+              {unreadCount > 0 && (
+                <span className="absolute top-1.5 right-1.5 flex h-2.5 w-2.5">
+                  <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-[#D92D2D] opacity-75"></span>
+                  <span className="relative inline-flex rounded-full h-2.5 w-2.5 bg-[#D92D2D]"></span>
+                </span>
+              )}
             </button>
 
             {/* Notifications Dropdown */}
             {isNotificationsOpen && (
-              <div className="absolute right-0 mt-2 w-80 sm:w-96 bg-[#EAE3DA] rounded-xl shadow-xl border border-[#B6AA9A] py-2 z-50 animate-fade-in">
+              <div
+                className="absolute right-0 mt-2 w-80 sm:w-96 bg-[#EAE3DA] rounded-xl shadow-xl border border-[#B6AA9A] py-2 z-50 animate-fade-in"
+                role="menu"
+                aria-label="Notifications dropdown"
+              >
                 <div className="px-4 py-2 border-b border-[#B6AA9A] flex items-center justify-between">
                   <div className="flex items-center gap-2">
                     <span className="font-semibold text-sm text-[#211E1A]">Notifications</span>
-                    <span className="text-[11px] font-medium bg-[#E2DCD4] text-[#D92D2D] px-2 py-0.5 rounded-full border border-[#B6AA9A]">
-                      3 new
+                    <span className={`text-[11px] font-medium px-2 py-0.5 rounded-full border ${
+                      unreadCount > 0
+                        ? 'bg-[#E2DCD4] text-[#D92D2D] border-[#B6AA9A]'
+                        : 'bg-[#E2DCD4] text-[#71675D] border-[#B6AA9A]'
+                    }`}>
+                      {unreadCount > 0 ? `${unreadCount} new` : 'All caught up'}
                     </span>
                   </div>
-                  <span className="text-xs text-[#D92D2D] cursor-pointer hover:underline">
+                  <button
+                    type="button"
+                    onClick={async (e) => {
+                      e.stopPropagation();
+                      await markAllAsRead();
+                      setNotificationToast('All notifications marked as read');
+                    }}
+                    disabled={unreadCount === 0}
+                    className={`text-xs focus:outline-none focus-visible:ring-1 focus-visible:ring-[#D92D2D] rounded ${
+                      unreadCount > 0
+                        ? 'text-[#D92D2D] hover:underline cursor-pointer font-medium'
+                        : 'text-[#71675D] opacity-60 cursor-not-allowed'
+                    }`}
+                    aria-label="Mark all notifications as read"
+                  >
                     Mark all read
-                  </span>
+                  </button>
                 </div>
 
                 <div className="divide-y divide-[#B6AA9A]/50 max-h-72 overflow-y-auto">
-                  <div className="px-4 py-3 hover:bg-[#C8BBAA]/40 transition-colors cursor-pointer">
-                    <div className="flex items-start gap-2">
-                      <span className="h-2 w-2 rounded-full bg-[#B45309] mt-1.5 flex-shrink-0" />
-                      <div>
-                        <p className="text-xs font-semibold text-[#211E1A]">New Course Submitted</p>
-                        <p className="text-xs text-[#514940] mt-0.5">
-                          "Advanced Machine Learning" submitted by Dr. Sarah Chen.
-                        </p>
-                        <span className="text-[10px] text-[#71675D] mt-1 block">12 minutes ago</span>
-                      </div>
+                  {notificationsList.length === 0 ? (
+                    <div className="px-4 py-6 text-center text-xs text-[#71675D]">
+                      No notifications available
                     </div>
-                  </div>
+                  ) : (
+                    notificationsList.slice(0, 6).map((item) => {
+                      const hasDestination = Boolean(item.link_url);
 
-                  <div className="px-4 py-3 hover:bg-[#C8BBAA]/40 transition-colors cursor-pointer">
-                    <div className="flex items-start gap-2">
-                      <span className="h-2 w-2 rounded-full bg-[#15803D] mt-1.5 flex-shrink-0" />
-                      <div>
-                        <p className="text-xs font-semibold text-[#211E1A]">Organization Registration</p>
-                        <p className="text-xs text-[#514940] mt-0.5">
-                          Global Tech Institute completed organizational verification.
-                        </p>
-                        <span className="text-[10px] text-[#71675D] mt-1 block">2 hours ago</span>
-                      </div>
-                    </div>
-                  </div>
+                      return (
+                        <div
+                          key={item.id}
+                          role="menuitem"
+                          tabIndex={0}
+                          onClick={async () => {
+                            if (!item.is_read) {
+                              await markAsRead(item.id);
+                            }
+                            if (hasDestination) {
+                              setIsNotificationsOpen(false);
+                              navigate(item.link_url);
+                            } else {
+                              setNotificationToast(`Marked as read: ${item.title}`);
+                            }
+                          }}
+                          onKeyDown={async (e) => {
+                            if (e.key === 'Enter' || e.key === ' ') {
+                              e.preventDefault();
+                              if (!item.is_read) {
+                                await markAsRead(item.id);
+                              }
+                              if (hasDestination) {
+                                setIsNotificationsOpen(false);
+                                navigate(item.link_url);
+                              } else {
+                                setNotificationToast(`Marked as read: ${item.title}`);
+                              }
+                            }
+                          }}
+                          className={`w-full text-left px-4 py-3 transition-colors cursor-pointer focus:outline-none focus:bg-[#C8BBAA]/50 ${
+                            item.is_read
+                              ? 'hover:bg-[#C8BBAA]/30 opacity-75'
+                              : 'hover:bg-[#C8BBAA]/50 bg-[#E2DCD4]/40'
+                          }`}
+                        >
+                          <div className="flex items-start justify-between gap-2">
+                            <div className="flex items-start gap-2.5 min-w-0">
+                              <span
+                                className="h-2 w-2 rounded-full mt-1.5 flex-shrink-0"
+                                style={{ backgroundColor: item.indicatorColor || '#D92D2D' }}
+                              />
+                              <div className="min-w-0">
+                                <div className="flex items-center gap-1.5">
+                                  <p className={`text-xs truncate ${item.is_read ? 'text-[#211E1A] font-medium' : 'text-[#211E1A] font-bold'}`}>
+                                    {item.title}
+                                  </p>
+                                  {!item.is_read && (
+                                    <span className="w-1.5 h-1.5 rounded-full bg-[#D92D2D] flex-shrink-0" />
+                                  )}
+                                </div>
+                                <p className="text-xs text-[#514940] mt-0.5 line-clamp-2 leading-relaxed">
+                                  {item.message}
+                                </p>
+                                <div className="flex items-center gap-2 mt-1">
+                                  <span className="text-[10px] text-[#71675D]">
+                                    {formatRelativeTime(item.created_at)}
+                                  </span>
+                                  {hasDestination ? (
+                                    <span className="text-[10px] text-[#D92D2D] font-medium">
+                                      Open &rarr;
+                                    </span>
+                                  ) : (
+                                    <span className="text-[10px] text-[#71675D] italic">
+                                      Informational notice
+                                    </span>
+                                  )}
+                                </div>
+                              </div>
+                            </div>
 
-                  <div className="px-4 py-3 hover:bg-[#C8BBAA]/40 transition-colors cursor-pointer">
-                    <div className="flex items-start gap-2">
-                      <span className="h-2 w-2 rounded-full bg-[#D92D2D] mt-1.5 flex-shrink-0" />
-                      <div>
-                        <p className="text-xs font-semibold text-[#211E1A]">System Health Notice</p>
-                        <p className="text-xs text-[#514940] mt-0.5">
-                          Database connection pool stable. Daily automated snapshot verified.
-                        </p>
-                        <span className="text-[10px] text-[#71675D] mt-1 block">5 hours ago</span>
-                      </div>
-                    </div>
-                  </div>
+                            {/* Quick Mark Read Button (stops card navigation propagation) */}
+                            {!item.is_read && (
+                              <button
+                                type="button"
+                                onClick={async (e) => {
+                                  e.stopPropagation();
+                                  await markAsRead(item.id);
+                                  setNotificationToast('Notification marked as read');
+                                }}
+                                className="text-[#71675D] hover:text-[#D92D2D] p-1 rounded hover:bg-[#C8BBAA]/50 transition-colors flex-shrink-0 focus:outline-none focus-visible:ring-1 focus-visible:ring-[#D92D2D]"
+                                title="Mark as read"
+                                aria-label={`Mark "${item.title}" as read`}
+                              >
+                                <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M5 13l4 4L19 7" />
+                                </svg>
+                              </button>
+                            )}
+                          </div>
+                        </div>
+                      );
+                    })
+                  )}
                 </div>
 
-                <div className="px-4 py-2 border-t border-[#B6AA9A] text-center">
-                  <Link
-                    to="/admin/reports"
-                    onClick={() => setIsNotificationsOpen(false)}
-                    className="text-xs font-medium text-[#D92D2D] hover:underline"
-                  >
-                    View Activity Log & Reports
-                  </Link>
+                {/* Dropdown Footer: View all notifications, Activity Logs, and Reports & Analytics */}
+                <div className="px-4 py-2.5 border-t border-[#B6AA9A] bg-[#E2DCD4]/70 space-y-2">
+                  <div className="flex items-center justify-between">
+                    <Link
+                      to="/admin/notifications"
+                      onClick={() => setIsNotificationsOpen(false)}
+                      className="text-xs font-bold text-[#D92D2D] hover:underline flex items-center gap-1.5 focus:outline-none focus-visible:ring-1 focus-visible:ring-[#D92D2D] rounded"
+                    >
+                      <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden="true">
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M15 17h5l-1.405-1.405A2.032 2.032 0 0118 14.158V11a6.002 6.002 0 00-4-5.659V5a2 2 0 10-4 0v.341C7.67 6.165 6 8.388 6 11v3.159c0 .538-.214 1.055-.595 1.436L4 17h5m6 0v1a3 3 0 11-6 0v-1m6 0H9" />
+                      </svg>
+                      <span>View all notifications</span>
+                    </Link>
+                  </div>
+
+                  <div className="pt-1.5 border-t border-[#B6AA9A]/50 flex items-center justify-between text-xs font-medium text-[#514940]">
+                    <Link
+                      to="/admin/activity-logs"
+                      onClick={() => setIsNotificationsOpen(false)}
+                      className="hover:text-[#D92D2D] hover:underline flex items-center gap-1 focus:outline-none focus-visible:ring-1 focus-visible:ring-[#D92D2D] rounded"
+                    >
+                      <span>View Activity Logs</span>
+                      <span aria-hidden="true">&rarr;</span>
+                    </Link>
+
+                    <Link
+                      to="/admin/reports"
+                      onClick={() => setIsNotificationsOpen(false)}
+                      className="hover:text-[#D92D2D] hover:underline flex items-center gap-1 focus:outline-none focus-visible:ring-1 focus-visible:ring-[#D92D2D] rounded"
+                    >
+                      <span>View Reports & Analytics</span>
+                      <span aria-hidden="true">&rarr;</span>
+                    </Link>
+                  </div>
                 </div>
               </div>
             )}
@@ -258,14 +439,25 @@ export default function Navbar({
               aria-expanded={isProfileOpen}
             >
               <div className="w-8 h-8 rounded-full bg-[#D92D2D] text-white flex items-center justify-center font-bold text-xs shadow-xs ring-1 ring-[#D92D2D]/30">
-                SA
+                {user?.full_name
+                  ? user.full_name.split(' ').map(n => n[0]).join('').slice(0, 2).toUpperCase()
+                  : user?.name
+                  ? user.name.split(' ').map(n => n[0]).join('').slice(0, 2).toUpperCase()
+                  : 'SA'}
               </div>
               <div className="hidden sm:flex flex-col text-left">
-                <span className="text-xs font-semibold text-[#211E1A] leading-tight">
-                  Super Admin
-                </span>
-                <span className="text-[10px] text-[#71675D] leading-tight">
-                  Platform Admin
+                <div className="flex items-center gap-1.5">
+                  <span className="text-xs font-semibold text-[#211E1A] leading-tight">
+                    {user?.full_name || user?.name || 'Super Admin'}
+                  </span>
+                  {user?.isDevPreview && (
+                    <span className="hidden md:inline-flex items-center px-1 py-0.2 rounded text-[9px] font-bold bg-amber-200 text-amber-900 border border-amber-300 uppercase">
+                      Preview
+                    </span>
+                  )}
+                </div>
+                <span className="text-[10px] text-[#71675D] leading-tight capitalize">
+                  {user?.isDevPreview ? 'Dev Preview Mode' : (user?.role ? user.role.replace(/_/g, ' ') : 'Platform Admin')}
                 </span>
               </div>
               <svg className="w-4 h-4 text-[#71675D] hidden sm:block" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -278,16 +470,24 @@ export default function Navbar({
               <div className="absolute right-0 mt-2 w-64 bg-[#EAE3DA] rounded-xl shadow-xl border border-[#B6AA9A] py-2 z-50 animate-fade-in">
                 {/* User Identity Header */}
                 <div className="px-4 py-3 border-b border-[#B6AA9A]">
-                  <p className="text-xs font-medium text-[#71675D] uppercase tracking-wider">Signed in as</p>
+                  <p className="text-xs font-medium text-[#71675D] uppercase tracking-wider">
+                    {user?.isDevPreview ? 'Local Preview Mode' : 'Signed in as'}
+                  </p>
                   <p className="text-sm font-semibold text-[#211E1A] mt-0.5 truncate">
-                    {user?.name || 'Super Admin'}
+                    {user?.full_name || user?.name || 'Administrator'}
                   </p>
                   <p className="text-xs text-[#514940] truncate">
-                    {user?.email || 'superadmin@learnspace.org'}
+                    {user?.email || 'admin@learnspace.org'}
                   </p>
-                  <span className="mt-2 inline-flex items-center px-2 py-0.5 rounded text-[10px] font-medium bg-[#E2DCD4] text-[#D92D2D] border border-[#B6AA9A]">
-                    Super Administrator
-                  </span>
+                  {user?.isDevPreview ? (
+                    <span className="mt-2 inline-flex items-center px-2 py-0.5 rounded text-[10px] font-bold bg-amber-200 text-amber-900 border border-amber-400 uppercase tracking-wider">
+                      ⚡ Dev Preview (Backend Offline)
+                    </span>
+                  ) : (
+                    <span className="mt-2 inline-flex items-center px-2 py-0.5 rounded text-[10px] font-medium bg-[#E2DCD4] text-[#D92D2D] border border-[#B6AA9A] capitalize">
+                      {user?.role ? user.role.replace(/_/g, ' ') : 'Super Administrator'}
+                    </span>
+                  )}
                 </div>
 
                 <div className="py-1">
@@ -309,7 +509,7 @@ export default function Navbar({
                     type="button"
                     onClick={() => {
                       setIsProfileOpen(false);
-                      alert('Account settings page pending implementation.');
+                      navigate('/admin/settings');
                     }}
                     className="w-full text-left px-4 py-2 text-xs text-[#211E1A] hover:bg-[#C8BBAA]/50 flex items-center gap-2"
                   >
@@ -340,8 +540,22 @@ export default function Navbar({
 
         {/* Global Search Dialog Modal */}
         {isSearchOpen && (
-          <div className="fixed inset-0 z-50 flex items-start justify-center pt-20 px-4 bg-black/40 backdrop-blur-xs animate-fade-in">
-            <div className="bg-[#EAE3DA] rounded-xl shadow-2xl border border-[#B6AA9A] max-w-lg w-full overflow-hidden">
+          <div
+            className="fixed inset-0 z-50 flex items-start justify-center pt-20 px-4 bg-black/40 backdrop-blur-xs animate-fade-in"
+            onClick={(e) => {
+              if (e.target === e.currentTarget) {
+                setIsSearchOpen(false);
+              }
+            }}
+            role="dialog"
+            aria-modal="true"
+            aria-label="Quick search modal"
+          >
+            <div
+              ref={searchModalRef}
+              onClick={(e) => e.stopPropagation()}
+              className="bg-[#EAE3DA] rounded-xl shadow-2xl border border-[#B6AA9A] max-w-lg w-full overflow-hidden"
+            >
               <div className="p-3 border-b border-[#B6AA9A] flex items-center gap-3">
                 <svg className="w-5 h-5 text-[#D92D2D]" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                   <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
@@ -397,6 +611,20 @@ export default function Navbar({
                 )}
               </div>
             </div>
+          </div>
+        )}
+
+        {/* Top-bar Notification Feedback Toast */}
+        {notificationToast && (
+          <div
+            className="fixed top-18 right-6 z-50 bg-[#211E1A] text-[#EAE3DA] px-3.5 py-2 rounded-xl shadow-xl border border-[#71675D] text-xs font-medium flex items-center gap-2 animate-fade-in"
+            role="status"
+            aria-live="polite"
+          >
+            <svg className="w-4 h-4 text-emerald-400 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M5 13l4 4L19 7" />
+            </svg>
+            <span>{notificationToast}</span>
           </div>
         )}
       </header>

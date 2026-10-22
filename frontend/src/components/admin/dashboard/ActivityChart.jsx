@@ -215,21 +215,49 @@ export default function ActivityChart({ trendsData = {} }) {
     });
   };
 
-  // Forgiving nearest-point hover detection across the plotting area
+  // Get primary plotted points for alignment and mapping
+  const basePoints = metricSeries[0]?.points || [];
+
+  // Convert pointer screen coordinates into SVG coordinate space
+  const getPointerSVGX = (e) => {
+    if (!svgRef.current) return null;
+    const svg = svgRef.current;
+
+    // Use native SVG Current Transformation Matrix if available
+    if (typeof svg.getScreenCTM === 'function') {
+      const ctm = svg.getScreenCTM();
+      if (ctm) {
+        const pt = svg.createSVGPoint();
+        pt.x = e.clientX;
+        pt.y = e.clientY;
+        const svgPt = pt.matrixTransform(ctm.inverse());
+        return svgPt.x;
+      }
+    }
+
+    // Fallback: Convert clientX using SVG bounding client rect
+    const rect = svg.getBoundingClientRect();
+    if (!rect.width) return null;
+    return ((e.clientX - rect.left) / rect.width) * width;
+  };
+
+  // Responsive nearest-point pointer coordinate mapping using actual plotted points
   const handlePointerMove = (e) => {
-    if (!svgRef.current || basePoints.length === 0) return;
-    const rect = svgRef.current.getBoundingClientRect();
-    if (!rect.width) return;
+    if (!basePoints || basePoints.length === 0) return;
+    const count = basePoints.length;
+    if (count === 1) {
+      if (hoveredPointIndex !== 0) setHoveredPointIndex(0);
+      return;
+    }
 
-    // Convert mouse clientX into SVG viewBox coordinate space (0 to width)
-    const clientX = e.clientX;
-    const svgX = ((clientX - rect.left) / rect.width) * width;
+    const svgX = getPointerSVGX(e);
+    if (svgX === null) return;
 
-    // Find nearest data point index by horizontal distance
+    // Find nearest data point using actual x positions of the plotted points
     let nearestIdx = 0;
     let minDistance = Infinity;
 
-    for (let i = 0; i < basePoints.length; i++) {
+    for (let i = 0; i < count; i++) {
       const dist = Math.abs(basePoints[i].x - svgX);
       if (dist < minDistance) {
         minDistance = dist;
@@ -255,7 +283,6 @@ export default function ActivityChart({ trendsData = {} }) {
   };
 
   // Get active hovered tooltip data
-  const basePoints = metricSeries[0]?.points || [];
   const activePointInfo = hoveredPointIndex !== null && basePoints[hoveredPointIndex]
     ? {
         date: basePoints[hoveredPointIndex].date,
@@ -411,11 +438,16 @@ export default function ActivityChart({ trendsData = {} }) {
         ) : (
           <svg
             ref={svgRef}
-            className="w-full h-auto max-h-[250px] overflow-visible transition-all duration-300"
+            className="w-full h-auto overflow-visible cursor-crosshair select-none"
             viewBox={`0 0 ${width} ${height}`}
             role="img"
             aria-label={`Activity line chart for ${selectedRange}`}
+            style={{ touchAction: 'none' }}
+            onPointerMove={handlePointerMove}
+            onPointerDown={handlePointerMove}
+            onPointerEnter={handlePointerMove}
             onPointerLeave={handlePointerLeave}
+            onPointerCancel={handlePointerLeave}
           >
             <defs>
               {/* Subtle Red Gradient Fill for Single Metric Mode */}
@@ -524,7 +556,7 @@ export default function ActivityChart({ trendsData = {} }) {
               const isFirst = i === 0;
               const isLast = i === totalPts - 1;
               const shouldRenderLabel = isFirst || isLast || (i % step === 0 && i < totalPts - Math.floor(step / 2)) || isHovered;
-              const anchor = isFirst ? 'start' : isLast ? 'end' : 'middle';
+              const anchor = 'middle';
 
               return (
                 <g key={i} className="pointer-events-none">
@@ -546,18 +578,29 @@ export default function ActivityChart({ trendsData = {} }) {
               );
             })}
 
-            {/* Forgiving pointer interaction layer over plotting area */}
+            {/* Full-coverage pointer tracking layer across entire SVG canvas */}
             <rect
-              x={padding.left}
-              y={padding.top}
-              width={chartW}
-              height={chartH + 30}
+              x="0"
+              y="0"
+              width={width}
+              height={height}
               fill="transparent"
-              className="cursor-crosshair"
-              onPointerMove={handlePointerMove}
-              onPointerDown={handlePointerMove}
-              onPointerLeave={handlePointerLeave}
+              className="cursor-crosshair pointer-events-none"
+              aria-hidden="true"
             />
+
+            {/* Dedicated Point Markers (Visual/presentation targets) */}
+            {basePoints.map((pt, i) => (
+              <circle
+                key={`point-target-${i}`}
+                cx={pt.x}
+                cy={pt.y}
+                r="16"
+                fill="transparent"
+                className="pointer-events-none"
+                aria-hidden="true"
+              />
+            ))}
 
             {/* Keyboard Accessible Targets */}
             {basePoints.map((pt, i) => (
@@ -597,15 +640,16 @@ export default function ActivityChart({ trendsData = {} }) {
           const xPercent = (ptX / width) * 100;
 
           // Stable edge alignment prevents tooltip from ever clipping card borders
+          // Reposition inward when near the left or right edges
           let positionStyle = {};
-          if (xPercent < 24) {
+          if (xPercent <= 28) {
             positionStyle = {
-              left: `${Math.max(4, xPercent)}%`,
+              left: `${Math.max(2, xPercent)}%`,
               transform: 'translateX(0)'
             };
-          } else if (xPercent > 76) {
+          } else if (xPercent >= 72) {
             positionStyle = {
-              left: `${Math.min(96, xPercent)}%`,
+              left: `${Math.min(98, xPercent)}%`,
               transform: 'translateX(-100%)'
             };
           } else {
@@ -617,7 +661,7 @@ export default function ActivityChart({ trendsData = {} }) {
 
           return (
             <div
-              className="absolute z-20 pointer-events-none bg-[#211E1A] text-[#EAE3DA] text-xs rounded-lg px-3 py-2.5 shadow-lg border border-[#514940] transition-transform duration-75 whitespace-nowrap"
+              className="absolute z-20 pointer-events-none bg-[#211E1A] text-[#EAE3DA] text-xs rounded-lg px-3 py-2.5 shadow-lg border border-[#514940] whitespace-nowrap max-w-[calc(100%-16px)]"
               style={{
                 top: '8px',
                 ...positionStyle

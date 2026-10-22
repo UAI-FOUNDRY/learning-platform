@@ -7,6 +7,12 @@ import ActivityChart from '../../components/admin/dashboard/ActivityChart';
 import PendingApprovalsPanel from '../../components/admin/dashboard/PendingApprovalsPanel';
 import RecentActivityPanel from '../../components/admin/dashboard/RecentActivityPanel';
 import { dashboardService } from '../../services/dashboardService';
+import {
+  subscribeToReviewUpdates,
+  getPendingCourses,
+  applyCourseReviews
+} from '../../utils/courseReviews';
+import { mockPendingApprovals, mockRecentCourses } from '../../data/mockDashboardData';
 
 // Restrained SVG icons matching design system
 function UsersIcon({ className = 'w-6 h-6' }) {
@@ -86,6 +92,27 @@ export default function AdminDashboard() {
   useEffect(() => {
     loadDashboard();
   }, [loadDashboard]);
+
+  // Subscribe to live review updates across tabs or review modals
+  useEffect(() => {
+    const unsubscribe = subscribeToReviewUpdates((storedReviews) => {
+      setData((prevData) => {
+        if (!prevData) return prevData;
+        const pending = getPendingCourses(mockPendingApprovals, storedReviews);
+        const updatedRecentCourses = applyCourseReviews(mockRecentCourses, storedReviews);
+        return {
+          ...prevData,
+          summary: {
+            ...prevData.summary,
+            pendingApprovals: pending.length
+          },
+          pendingApprovals: pending,
+          recentCourses: updatedRecentCourses
+        };
+      });
+    });
+    return unsubscribe;
+  }, []);
 
   // Dashboard-wide Refresh control
   const handleRefresh = async () => {
@@ -255,7 +282,7 @@ export default function AdminDashboard() {
               />
               <SummaryCard
                 title="Pending Approvals"
-                value={data?.summary?.pendingApprovals || 5}
+                value={data?.summary?.pendingApprovals ?? 0}
                 description="Awaiting administrative review"
                 to="/admin/approvals"
                 icon={ApprovalsIcon}

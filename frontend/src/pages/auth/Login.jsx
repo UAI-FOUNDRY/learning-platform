@@ -296,7 +296,13 @@ export default function Login({ defaultRole }) {
               </div>
             </form>
 
-            <div className="pt-3 border-t border-[#B6AA9A]/50 text-center">
+            <div className="pt-3 border-t border-[#B6AA9A]/50 text-center space-y-1.5">
+              <p className="text-xs text-[#514940]">
+                New faculty member?{' '}
+                <Link to="/register?role=instructor" className="font-bold text-[#D92D2D] hover:underline">
+                  Create Faculty Account
+                </Link>
+              </p>
               <p className="text-xs text-[#71675D]">
                 Are you a learner looking for courses?{' '}
                 <button
@@ -424,7 +430,13 @@ export default function Login({ defaultRole }) {
               </div>
             </form>
 
-            <div className="pt-3 border-t border-[#B6AA9A]/50 text-center">
+            <div className="pt-3 border-t border-[#B6AA9A]/50 text-center space-y-1.5">
+              <p className="text-xs text-[#514940]">
+                Don't have a student account yet?{' '}
+                <Link to="/register?role=learner" className="font-bold text-[#211E1A] hover:underline">
+                  Create Student Account
+                </Link>
+              </p>
               <p className="text-xs text-[#71675D]">
                 Are you an instructor or faculty member?{' '}
                 <button

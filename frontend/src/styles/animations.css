@@ -1,4 +1,4 @@
-/* Standard and Premium Hardware-Accelerated Animations */
+/* Standard and Premium Hardware-Accelerated Animations for LearnSpace */
 
 @keyframes fadeIn {
   from { opacity: 0; }
@@ -8,7 +8,7 @@
 @keyframes slideUp {
   from {
     opacity: 0;
-    transform: translateY(12px);
+    transform: translateY(14px);
   }
   to {
     opacity: 1;
@@ -19,11 +19,22 @@
 @keyframes slideDown {
   from {
     opacity: 0;
-    transform: translateY(-10px);
+    transform: translateY(-12px);
   }
   to {
     opacity: 1;
     transform: translateY(0);
+  }
+}
+
+@keyframes slideRight {
+  from {
+    opacity: 0;
+    transform: translateX(-16px);
+  }
+  to {
+    opacity: 1;
+    transform: translateX(0);
   }
 }
 
@@ -38,12 +49,30 @@
   }
 }
 
+@keyframes floatSlow {
+  0%, 100% {
+    transform: translateY(0px);
+  }
+  50% {
+    transform: translateY(-8px);
+  }
+}
+
+@keyframes floatGentle {
+  0%, 100% {
+    transform: translateY(0px) rotate(0deg);
+  }
+  50% {
+    transform: translateY(-4px) rotate(1deg);
+  }
+}
+
 @keyframes pulseGlow {
   0%, 100% {
     box-shadow: 0 0 0 0 rgba(217, 45, 45, 0.4);
   }
   50% {
-    box-shadow: 0 0 0 6px rgba(217, 45, 45, 0);
+    box-shadow: 0 0 0 8px rgba(217, 45, 45, 0);
   }
 }
 
@@ -52,7 +81,7 @@
     box-shadow: 0 0 0 0 rgba(217, 119, 6, 0.35);
   }
   50% {
-    box-shadow: 0 0 0 6px rgba(217, 119, 6, 0);
+    box-shadow: 0 0 0 8px rgba(217, 119, 6, 0);
   }
 }
 
@@ -65,8 +94,37 @@
   }
 }
 
+@keyframes confettiBurst {
+  0% {
+    transform: translateY(0) scale(1) rotate(0deg);
+    opacity: 1;
+  }
+  100% {
+    transform: translateY(-120px) scale(0.8) rotate(360deg);
+    opacity: 0;
+  }
+}
+
+@keyframes dashFlow {
+  to {
+    stroke-dashoffset: -30;
+  }
+}
+
+@keyframes pulseSubtle {
+  0%, 100% {
+    opacity: 1;
+    transform: scale(1);
+  }
+  50% {
+    opacity: 0.6;
+    transform: scale(0.95);
+  }
+}
+
+/* Utility Animation Classes */
 .animate-fade-in {
-  animation: fadeIn 0.25s cubic-bezier(0.16, 1, 0.3, 1) forwards;
+  animation: fadeIn 0.3s cubic-bezier(0.16, 1, 0.3, 1) forwards;
 }
 
 .animate-slide-up {
@@ -77,55 +135,150 @@
   animation: slideDown 0.25s cubic-bezier(0.16, 1, 0.3, 1) forwards;
 }
 
-.animate-scale-in {
-  animation: scaleIn 0.2s cubic-bezier(0.16, 1, 0.3, 1) forwards;
+.animate-slide-right {
+  animation: slideRight 0.3s cubic-bezier(0.16, 1, 0.3, 1) forwards;
 }
 
-.pulse-glow-red {
+.animate-scale-in {
+  animation: scaleIn 0.25s cubic-bezier(0.16, 1, 0.3, 1) forwards;
+}
+
+.animate-float {
+  animation: floatSlow 4s ease-in-out infinite;
+}
+
+.animate-float-gentle {
+  animation: floatGentle 5s ease-in-out infinite;
+}
+
+.animate-pulse-glow {
   animation: pulseGlow 2.5s infinite;
 }
 
-.pulse-glow-amber {
-  animation: amberGlow 2.5s infinite;
+.animate-dash-flow {
+  animation: dashFlow 2s linear infinite;
+}
+
+.animate-pulse-subtle {
+  animation: pulseSubtle 2.5s ease-in-out infinite;
 }
 
 .hover-lift {
-  transition: transform 0.2s cubic-bezier(0.16, 1, 0.3, 1), box-shadow 0.2s cubic-bezier(0.16, 1, 0.3, 1);
+  transition: transform 0.25s cubic-bezier(0.16, 1, 0.3, 1), box-shadow 0.25s cubic-bezier(0.16, 1, 0.3, 1);
 }
 
 .hover-lift:hover {
-  transform: translateY(-2px);
-  box-shadow: 0 8px 24px -4px rgba(33, 30, 26, 0.12), 0 2px 6px -1px rgba(33, 30, 26, 0.08);
+  transform: translateY(-3px);
+  box-shadow: 0 12px 30px -6px rgba(33, 30, 26, 0.15), 0 4px 10px -2px rgba(33, 30, 26, 0.08);
 }
 
 .interactive-card {
-  transition: all 0.2s cubic-bezier(0.16, 1, 0.3, 1);
+  transition: all 0.25s cubic-bezier(0.16, 1, 0.3, 1);
 }
 
 .interactive-card:hover {
-  border-color: rgba(217, 45, 45, 0.5);
-  box-shadow: 0 10px 30px -6px rgba(33, 30, 26, 0.12);
+  border-color: rgba(217, 45, 45, 0.6);
+  box-shadow: 0 14px 34px -8px rgba(33, 30, 26, 0.14);
 }
 
+/* Glassmorphism styling */
+.glass-panel {
+  background: rgba(255, 255, 255, 0.85);
+  backdrop-filter: blur(12px);
+  -webkit-backdrop-filter: blur(12px);
+}
 
-/* frontend/src/styles/animations.css */
-/* Clean, subtle transitions with reduced-motion support */
+.glass-panel-taupe {
+  background: rgba(234, 227, 218, 0.88);
+  backdrop-filter: blur(12px);
+  -webkit-backdrop-filter: blur(12px);
+}
 
-@keyframes authFadeIn {
-  from {
-    opacity: 0;
-    transform: translateY(8px);
+/* 3D Flip Card Styles for Interactive Flashcard & Challenges */
+.perspective-1000 {
+  perspective: 1000px;
+}
+
+.transform-style-preserve-3d {
+  transform-style: preserve-3d;
+}
+
+.backface-hidden {
+  backface-visibility: hidden;
+  -webkit-backface-visibility: hidden;
+}
+
+.rotate-y-180 {
+  transform: rotateY(180deg);
+}
+
+/* Micro-interaction & Shimmer Enhancements */
+@keyframes flamePulse {
+  0%, 100% {
+    transform: scale(1);
+    filter: drop-shadow(0 0 4px rgba(234, 88, 12, 0.4));
   }
-  to {
-    opacity: 1;
-    transform: translateY(0);
+  50% {
+    transform: scale(1.12);
+    filter: drop-shadow(0 0 10px rgba(234, 88, 12, 0.8));
   }
 }
 
-.animate-auth-fade-in {
-  animation: authFadeIn 0.35s cubic-bezier(0.16, 1, 0.3, 1) forwards;
+.animate-flame {
+  animation: flamePulse 2s ease-in-out infinite;
 }
 
+@keyframes shineSweep {
+  0% {
+    transform: translateX(-100%) rotate(25deg);
+  }
+  100% {
+    transform: translateX(200%) rotate(25deg);
+  }
+}
+
+.shine-sweep-container {
+  position: relative;
+  overflow: hidden;
+}
+
+.shine-sweep-container::after {
+  content: '';
+  position: absolute;
+  top: -50%;
+  left: -50%;
+  width: 200%;
+  height: 200%;
+  background: linear-gradient(
+    to right,
+    rgba(255, 255, 255, 0) 0%,
+    rgba(255, 255, 255, 0.25) 50%,
+    rgba(255, 255, 255, 0) 100%
+  );
+  transform: rotate(25deg);
+  pointer-events: none;
+  animation: shineSweep 4s ease-in-out infinite;
+}
+
+.hover-glow-red {
+  transition: all 0.25s cubic-bezier(0.16, 1, 0.3, 1);
+}
+
+.hover-glow-red:hover {
+  box-shadow: 0 0 18px rgba(217, 45, 45, 0.35);
+  border-color: rgba(217, 45, 45, 0.8);
+}
+
+.hover-scale-card {
+  transition: transform 0.25s cubic-bezier(0.16, 1, 0.3, 1), box-shadow 0.25s cubic-bezier(0.16, 1, 0.3, 1);
+}
+
+.hover-scale-card:hover {
+  transform: translateY(-4px) scale(1.01);
+  box-shadow: 0 16px 36px -8px rgba(33, 30, 26, 0.16);
+}
+
+/* Reduced Motion Preference Accessibility */
 @media (prefers-reduced-motion: reduce) {
   *, *::before, *::after {
     animation-duration: 0.001s !important;

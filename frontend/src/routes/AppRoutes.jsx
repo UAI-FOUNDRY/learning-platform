@@ -81,6 +81,10 @@ export default function AppRoutes() {
           element={<Login defaultRole="instructor" />}
         />
         <Route path="/register" element={<Register />} />
+        <Route
+          path="/instructor/register"
+          element={<Register defaultRole="instructor" />}
+        />
         <Route path="/forgot-password" element={<ForgotPassword />} />
         <Route path="/reset-password" element={<ResetPassword />} />
         <Route path="/verify-email" element={<VerifyEmail />} />

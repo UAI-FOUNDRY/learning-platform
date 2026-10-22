@@ -2,6 +2,7 @@ import React, { useState, useRef, useEffect } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import { useAuth } from '../../hooks/useAuth';
 import { learnerService } from '../../services/learnerService';
+import LeaderboardModal from './LeaderboardModal';
 
 export default function LearnerNavbar({ onOpenMobileSidebar }) {
   const { user, logoutSession } = useAuth();
@@ -12,6 +13,7 @@ export default function LearnerNavbar({ onOpenMobileSidebar }) {
   const [isSearchOpen, setIsSearchOpen] = useState(false);
   const [searchQuery, setSearchQuery] = useState('');
   const [showStreakModal, setShowStreakModal] = useState(false);
+  const [showLeaderboard, setShowLeaderboard] = useState(false);
 
   const profileRef = useRef(null);
 
@@ -64,7 +66,7 @@ export default function LearnerNavbar({ onOpenMobileSidebar }) {
             </button>
 
             <div className="hidden sm:flex items-center gap-2">
-              <span className="text-xs font-bold px-2.5 py-1 rounded-full bg-[#EAE3DA] text-[#211E1A] border border-[#B6AA9A] flex items-center gap-1.5">
+              <span className="text-xs font-bold px-2.5 py-1 rounded-full bg-[#EAE3DA] text-[#211E1A] border border-[#B6AA9A] flex items-center gap-1.5 shadow-2xs">
                 <span className="w-2 h-2 rounded-full bg-emerald-600 animate-pulse" />
                 Active Student Session
               </span>
@@ -85,7 +87,7 @@ export default function LearnerNavbar({ onOpenMobileSidebar }) {
                 <svg className="w-3.5 h-3.5 text-[#514940] group-hover:text-[#D92D2D]" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                   <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
                 </svg>
-                <span>Search courses, lectures, or topics...</span>
+                <span>Search courses, PyTorch, Kubernetes, WCAG...</span>
               </span>
               <kbd className="px-1.5 py-0.5 text-[10px] font-mono bg-white border border-[#B6AA9A] rounded text-[#514940]">
                 ⌘K
@@ -93,7 +95,7 @@ export default function LearnerNavbar({ onOpenMobileSidebar }) {
             </button>
           </div>
 
-          {/* Right: Gamification Badges & Profile Dropdown */}
+          {/* Right: Gamification Badges, Streak, Points & Profile */}
           <div className="flex items-center gap-2 sm:gap-3">
             {/* Streak Counter Pill */}
             <button
@@ -107,12 +109,17 @@ export default function LearnerNavbar({ onOpenMobileSidebar }) {
               <span className="hidden sm:inline text-[#71675D] font-normal text-[11px]">streak</span>
             </button>
 
-            {/* Total Points / XP */}
-            <div className="hidden lg:flex items-center gap-1.5 px-2.5 py-1.5 bg-[#EAE3DA] border border-[#B6AA9A] rounded-xl text-xs font-bold text-[#211E1A]">
+            {/* Total Points / XP (Opens Leaderboard Modal) */}
+            <button
+              type="button"
+              onClick={() => setShowLeaderboard(true)}
+              className="flex items-center gap-1.5 px-2.5 py-1.5 bg-[#EAE3DA] hover:bg-[#D6D0C8] border border-[#B6AA9A] rounded-xl text-xs font-bold text-[#211E1A] transition-all hover:scale-102 shadow-2xs"
+              title="View global scholar rankings"
+            >
               <span>⭐</span>
               <span>{profile?.stats?.totalPoints || 1450}</span>
-              <span className="text-[#71675D] font-normal text-[10px]">XP</span>
-            </div>
+              <span className="text-[#71675D] font-normal text-[10px] hidden sm:inline">XP • Ranks</span>
+            </button>
 
             {/* Browse Catalog Quick CTA */}
             <Link
@@ -216,6 +223,12 @@ export default function LearnerNavbar({ onOpenMobileSidebar }) {
           </div>
         </div>
       </header>
+
+      {/* Leaderboard Modal */}
+      <LeaderboardModal
+        isOpen={showLeaderboard}
+        onClose={() => setShowLeaderboard(false)}
+      />
 
       {/* Streak Info Modal */}
       {showStreakModal && (

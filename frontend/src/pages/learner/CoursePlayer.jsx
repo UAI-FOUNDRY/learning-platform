@@ -2,6 +2,9 @@ import React, { useState, useEffect } from 'react';
 import { useParams, Link, useNavigate } from 'react-router-dom';
 import { learnerService } from '../../services/learnerService';
 import CodingWorkspace from '../../components/learner/CodingWorkspace';
+import AIAssistantDrawer from '../../components/learner/AIAssistantDrawer';
+import CourseReviewModal from '../../components/learner/CourseReviewModal';
+import PracticeTestModal from '../../components/learner/PracticeTestModal';
 
 export default function CoursePlayer() {
   const { courseId } = useParams();
@@ -16,13 +19,19 @@ export default function CoursePlayer() {
   const [playbackSpeed, setPlaybackSpeed] = useState('1.0x');
   const [isPlaying, setIsPlaying] = useState(false);
   const [showCelebration, setShowCelebration] = useState(false);
+  const [isFullscreen, setIsFullscreen] = useState(false);
+  const [bookmarkedLessons, setBookmarkedLessons] = useState({});
+
+  // Modals state
+  const [isAIOpen, setIsAIOpen] = useState(false);
+  const [isReviewOpen, setIsReviewOpen] = useState(false);
+  const [isPracticeOpen, setIsPracticeOpen] = useState(false);
 
   useEffect(() => {
     const loaded = learnerService.getCourseById(courseId);
     if (loaded) {
       setCourse(loaded);
     } else {
-      // Fallback: load first enrolled course if ID not found
       const enrolled = learnerService.getEnrolledCourses();
       if (enrolled && enrolled.length > 0) {
         setCourse(enrolled[0]);
@@ -72,6 +81,14 @@ export default function CoursePlayer() {
     }
   };
 
+  const handleToggleBookmark = () => {
+    if (!currentLesson) return;
+    setBookmarkedLessons(prev => ({
+      ...prev,
+      [currentLesson.id]: !prev[currentLesson.id]
+    }));
+  };
+
   const handleSaveNotes = (e) => {
     const text = e.target.value;
     setLessonNotes(text);
@@ -107,8 +124,10 @@ export default function CoursePlayer() {
     );
   }
 
+  const isCurrentBookmarked = Boolean(currentLesson && bookmarkedLessons[currentLesson.id]);
+
   return (
-    <div className="space-y-4 animate-fade-in font-sans">
+    <div className={`space-y-4 animate-fade-in font-sans ${isFullscreen ? 'p-4 max-w-7xl mx-auto' : ''}`}>
       {/* Top Header Bar */}
       <div className="bg-white border-2 border-[#B6AA9A] rounded-2xl p-4 shadow-sm flex flex-col md:flex-row items-start md:items-center justify-between gap-4">
         <div className="flex items-center gap-3">
@@ -126,7 +145,7 @@ export default function CoursePlayer() {
                 {course.category}
               </span>
               <span className="text-xs text-[#71675D] hidden sm:inline">
-                {course.instructor}
+                by {course.instructor}
               </span>
             </div>
             <h1 className="text-base sm:text-lg font-black text-[#211E1A] truncate max-w-xl">
@@ -135,20 +154,54 @@ export default function CoursePlayer() {
           </div>
         </div>
 
-        {/* Progress & Completion Toggle */}
-        <div className="flex items-center gap-3 w-full md:w-auto justify-between md:justify-end">
-          <div className="text-right">
-            <span className="text-xs font-black text-[#211E1A]">
-              {course.progressPercent}% Completed
-            </span>
-            <div className="w-28 bg-[#EAE3DA] h-2 rounded-full overflow-hidden border border-[#B6AA9A]/50 mt-0.5">
-              <div
-                className="bg-[#D92D2D] h-full rounded-full transition-all duration-500"
-                style={{ width: `${course.progressPercent}%` }}
-              />
-            </div>
-          </div>
+        {/* Action Controls & Modal Triggers */}
+        <div className="flex flex-wrap items-center gap-2 sm:gap-3 w-full md:w-auto justify-between md:justify-end">
+          {/* AI Scholar Assistant Button (PROJECT.md §25) */}
+          <button
+            type="button"
+            onClick={() => setIsAIOpen(true)}
+            className="px-3 py-1.5 bg-[#D92D2D]/10 hover:bg-[#D92D2D]/20 text-[#D92D2D] border border-[#D92D2D]/50 rounded-xl text-xs font-black transition-all flex items-center gap-1.5 shadow-2xs hover:scale-102"
+          >
+            <span>🤖</span>
+            <span>AI Scholar Assist</span>
+          </button>
 
+          {/* Diagnostic Practice Test Trigger (PROJECT.md §16) */}
+          <button
+            type="button"
+            onClick={() => setIsPracticeOpen(true)}
+            className="px-3 py-1.5 bg-[#EAE3DA] hover:bg-[#D6D0C8] text-[#211E1A] border border-[#B6AA9A] rounded-xl text-xs font-bold transition-colors shadow-2xs flex items-center gap-1.5"
+          >
+            <span>🎯</span>
+            <span className="hidden sm:inline">Diagnostic Practice</span>
+          </button>
+
+          {/* Course Rating / Review Trigger (PROJECT.md §18) */}
+          <button
+            type="button"
+            onClick={() => setIsReviewOpen(true)}
+            className="px-2.5 py-1.5 bg-amber-50 hover:bg-amber-100 text-amber-900 border border-amber-300 rounded-xl text-xs font-bold transition-colors shadow-2xs flex items-center gap-1"
+            title="Leave a Course Review"
+          >
+            <span>★</span>
+            <span className="hidden sm:inline">Review</span>
+          </button>
+
+          {/* Bookmark Toggle (PROJECT.md §10) */}
+          <button
+            type="button"
+            onClick={handleToggleBookmark}
+            className={`p-2 rounded-xl text-xs font-bold border transition-colors ${
+              isCurrentBookmarked
+                ? 'bg-amber-100 border-amber-400 text-amber-800'
+                : 'bg-[#EAE3DA] hover:bg-[#D6D0C8] border-[#B6AA9A] text-[#211E1A]'
+            }`}
+            title={isCurrentBookmarked ? 'Remove Bookmark' : 'Bookmark Lecture'}
+          >
+            {isCurrentBookmarked ? '🔖 Saved' : '📑 Bookmark'}
+          </button>
+
+          {/* Mark Complete Toggle */}
           <button
             type="button"
             onClick={handleToggleComplete}
@@ -159,6 +212,16 @@ export default function CoursePlayer() {
             }`}
           >
             <span>{currentLesson?.completed ? '✓ Completed' : 'Mark as Complete'}</span>
+          </button>
+
+          {/* Fullscreen & Curriculum Drawer Toggles */}
+          <button
+            type="button"
+            onClick={() => setIsFullscreen(prev => !prev)}
+            className="p-2 rounded-xl bg-[#EAE3DA] hover:bg-[#D6D0C8] border border-[#B6AA9A] text-[#211E1A] text-xs font-bold transition-colors"
+            title={isFullscreen ? 'Exit Fullscreen' : 'Fullscreen Player'}
+          >
+            <span>⛶</span>
           </button>
 
           <button
@@ -174,7 +237,7 @@ export default function CoursePlayer() {
 
       {/* Main Learning Canvas Grid */}
       <div className="grid grid-cols-1 lg:grid-cols-12 gap-6">
-        {/* Main Content Area (8 or 12 cols based on curriculum drawer) */}
+        {/* Main Content Stage (8 or 12 cols based on curriculum drawer) */}
         <div className={`${isSidebarOpen ? 'lg:col-span-8' : 'lg:col-span-12'} space-y-4`}>
           {/* ========================================================
               LESSON STAGE RENDERER (VIDEO / CODING / ARTICLE / QUIZ)
@@ -184,6 +247,7 @@ export default function CoursePlayer() {
             <CodingWorkspace
               lesson={currentLesson}
               onCompleteExercise={handleToggleComplete}
+              onOpenAIAssistant={() => setIsAIOpen(true)}
             />
           ) : currentLesson?.type === 'Video' ? (
             /* Video Lecture View */
@@ -221,7 +285,7 @@ export default function CoursePlayer() {
                 </div>
 
                 <div className="flex items-center gap-3">
-                  {/* Playback speed selector */}
+                  {/* Playback speed selector (PROJECT.md §10) */}
                   <div className="flex items-center gap-1 bg-stone-800/80 px-2 py-0.5 rounded-lg border border-stone-700">
                     {['1.0x', '1.25x', '1.5x'].map((spd) => (
                       <button
@@ -471,6 +535,8 @@ export default function CoursePlayer() {
                   <div className="space-y-1 pl-1">
                     {(module.lessons || []).map((lesson, lesIdx) => {
                       const isCurrent = modIdx === currentModuleIndex && lesIdx === currentLessonIndex;
+                      const isBookmarked = Boolean(bookmarkedLessons[lesson.id]);
+
                       return (
                         <button
                           key={lesson.id || lesIdx}
@@ -487,9 +553,14 @@ export default function CoursePlayer() {
                           </span>
 
                           <div className="flex-1 min-w-0">
-                            <p className="truncate text-xs">
-                              {lesson.title}
-                            </p>
+                            <div className="flex items-center gap-1.5">
+                              <p className="truncate text-xs">
+                                {lesson.title}
+                              </p>
+                              {isBookmarked && (
+                                <span className="text-[10px] text-amber-500">🔖</span>
+                              )}
+                            </div>
                             <div className="flex items-center gap-2 mt-0.5 text-[10px] opacity-80">
                               <span>{lesson.type}</span>
                               <span>•</span>
@@ -507,16 +578,36 @@ export default function CoursePlayer() {
         )}
       </div>
 
-      {/* Completion Toast Notification */}
+      {/* Completion Toast Notification with Confetti Burst */}
       {showCelebration && (
         <div className="fixed bottom-6 right-6 z-50 bg-[#211E1A] text-white border-2 border-emerald-500 rounded-2xl p-4 shadow-2xl flex items-center gap-3 animate-slide-up">
-          <span className="text-2xl">🎉</span>
+          <span className="text-3xl animate-bounce">🎉</span>
           <div>
             <p className="font-extrabold text-xs">Lecture Marked Complete!</p>
             <p className="text-[10px] text-stone-300">Progress recorded in your curriculum.</p>
           </div>
         </div>
       )}
+
+      {/* AI Scholar Assistant Drawer */}
+      <AIAssistantDrawer
+        isOpen={isAIOpen}
+        onClose={() => setIsAIOpen(false)}
+        contextLesson={currentLesson}
+      />
+
+      {/* Course Review Modal */}
+      <CourseReviewModal
+        isOpen={isReviewOpen}
+        onClose={() => setIsReviewOpen(false)}
+        courseTitle={course?.title || 'This Course'}
+      />
+
+      {/* Practice Test Modal */}
+      <PracticeTestModal
+        isOpen={isPracticeOpen}
+        onClose={() => setIsPracticeOpen(false)}
+      />
     </div>
   );
 }

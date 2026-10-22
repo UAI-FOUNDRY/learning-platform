@@ -1,11 +1,19 @@
 import React, { useState, useEffect } from 'react';
 import { Link } from 'react-router-dom';
 import { learnerService } from '../../services/learnerService';
+import LeaderboardModal from '../../components/learner/LeaderboardModal';
+import PracticeTestModal from '../../components/learner/PracticeTestModal';
+import AIAssistantDrawer from '../../components/learner/AIAssistantDrawer';
 
 export default function LearnerDashboard() {
   const [profile, setProfile] = useState(() => learnerService.getProfile());
   const [courses, setCourses] = useState(() => learnerService.getEnrolledCourses());
   const [deadlines, setDeadlines] = useState(() => learnerService.getUpcomingDeadlines());
+
+  // Modal triggers
+  const [showLeaderboard, setShowLeaderboard] = useState(false);
+  const [showPracticeTest, setShowPracticeTest] = useState(false);
+  const [showAIAssistant, setShowAIAssistant] = useState(false);
 
   useEffect(() => {
     return learnerService.subscribe((state) => {
@@ -17,6 +25,17 @@ export default function LearnerDashboard() {
 
   const continueCourse = courses.find(c => c.progressPercent < 100) || courses[0];
   const completedCourses = courses.filter(c => c.progressPercent >= 100);
+
+  // Weekly study days activity data
+  const weekDays = [
+    { day: 'Mon', hours: 1.5, active: true },
+    { day: 'Tue', hours: 1.2, active: true },
+    { day: 'Wed', hours: 2.0, active: true },
+    { day: 'Thu', hours: 1.8, active: true },
+    { day: 'Fri', hours: 0, active: false },
+    { day: 'Sat', hours: 0, active: false },
+    { day: 'Sun', hours: 0, active: false }
+  ];
 
   return (
     <div className="space-y-6 sm:space-y-8 animate-fade-in font-sans">
@@ -30,10 +49,21 @@ export default function LearnerDashboard() {
 
         <div className="relative z-10 flex flex-col lg:flex-row items-start lg:items-center justify-between gap-6">
           <div className="space-y-2 max-w-2xl">
-            <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full text-xs font-bold bg-white/80 border border-[#B6AA9A] text-[#211E1A] shadow-2xs">
-              <span className="text-sm">🔥</span>
-              <span>{profile?.stats?.streakDays || 12}-Day Study Streak Active</span>
-              <span className="text-[#D92D2D] font-extrabold">• Keep it up!</span>
+            <div className="flex flex-wrap items-center gap-2">
+              <span className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-xs font-bold bg-white/80 border border-[#B6AA9A] text-[#211E1A] shadow-2xs">
+                <span className="text-sm">🔥</span>
+                <span>{profile?.stats?.streakDays || 12}-Day Study Streak Active</span>
+                <span className="text-[#D92D2D] font-extrabold">• Keep it up!</span>
+              </span>
+
+              <button
+                type="button"
+                onClick={() => setShowLeaderboard(true)}
+                className="inline-flex items-center gap-1 px-2.5 py-1 rounded-full text-xs font-bold bg-[#211E1A] text-white hover:bg-black transition-colors shadow-2xs"
+              >
+                <span>🏆</span>
+                <span>Rank #4 Global</span>
+              </button>
             </div>
 
             <h1 className="text-2xl sm:text-4xl font-black text-[#211E1A] tracking-tight">
@@ -55,6 +85,15 @@ export default function LearnerDashboard() {
                 <span>→</span>
               </Link>
             )}
+
+            <button
+              type="button"
+              onClick={() => setShowAIAssistant(true)}
+              className="px-4 py-3 rounded-xl bg-[#D92D2D]/15 hover:bg-[#D92D2D]/25 text-[#D92D2D] border border-[#D92D2D]/60 font-extrabold text-xs sm:text-sm transition-all shadow-2xs flex items-center gap-1.5"
+            >
+              <span>🤖</span>
+              <span>AI Scholar</span>
+            </button>
 
             <Link
               to="/courses"
@@ -136,7 +175,7 @@ export default function LearnerDashboard() {
         </div>
 
         {/* Metric 4 */}
-        <div className="bg-white border-2 border-[#B6AA9A] rounded-2xl p-4 sm:p-5 shadow-2xs hover-lift transition-all">
+        <div className="bg-white border-2 border-[#B6AA9A] rounded-2xl p-4 sm:p-5 shadow-2xs hover-lift transition-all cursor-pointer" onClick={() => setShowLeaderboard(true)}>
           <div className="flex items-center justify-between">
             <span className="text-xs font-bold text-[#71675D] uppercase tracking-wider">Mastery XP</span>
             <span className="p-2 rounded-xl bg-red-100 text-[#D92D2D] text-sm font-bold">⭐</span>
@@ -144,8 +183,9 @@ export default function LearnerDashboard() {
           <p className="mt-3 text-2xl sm:text-3xl font-black text-[#D92D2D]">
             {profile?.stats?.totalPoints || 1450}
           </p>
-          <p className="mt-1 text-[11px] font-semibold text-[#514940]">
-            {profile?.stats?.rankTitle || 'Advanced Scholar'}
+          <p className="mt-1 text-[11px] font-semibold text-[#514940] flex items-center justify-between">
+            <span>{profile?.stats?.rankTitle || 'Advanced Scholar'}</span>
+            <span className="text-[#D92D2D] font-bold">Ranks →</span>
           </p>
         </div>
       </section>
@@ -162,12 +202,21 @@ export default function LearnerDashboard() {
                 Jump Right Back In
               </h2>
             </div>
-            <Link
-              to="/learner/my-learning"
-              className="text-xs font-bold text-[#D92D2D] hover:underline"
-            >
-              View All Enrolled Courses →
-            </Link>
+            <div className="flex items-center gap-3">
+              <button
+                type="button"
+                onClick={() => setShowPracticeTest(true)}
+                className="text-xs font-bold text-[#514940] hover:text-[#211E1A] hidden sm:inline"
+              >
+                🎯 Adaptive Diagnostic
+              </button>
+              <Link
+                to="/learner/my-learning"
+                className="text-xs font-bold text-[#D92D2D] hover:underline"
+              >
+                View All Enrolled Courses →
+              </Link>
+            </div>
           </div>
 
           <div className="flex flex-col md:flex-row items-center gap-6">
@@ -238,95 +287,125 @@ export default function LearnerDashboard() {
           TWO-COLUMN LAYOUT: IN-PROGRESS COURSES + DEADLINES
          ======================================================== */}
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-6 sm:gap-8">
-        {/* Left Column: My Courses (2 cols) */}
-        <div className="lg:col-span-2 space-y-4">
-          <div className="flex items-center justify-between">
-            <div>
-              <h2 className="text-lg font-black text-[#211E1A]">Enrolled Curriculum</h2>
-              <p className="text-xs text-[#514940]">Your active university & faculty courses</p>
+        {/* Left Column: My Courses & Weekly Activity (2 cols) */}
+        <div className="lg:col-span-2 space-y-6">
+          {/* Enrolled Courses Grid */}
+          <div className="space-y-4">
+            <div className="flex items-center justify-between">
+              <div>
+                <h2 className="text-lg font-black text-[#211E1A]">Enrolled Curriculum</h2>
+                <p className="text-xs text-[#514940]">Your active university & faculty courses</p>
+              </div>
+              <Link
+                to="/learner/my-learning"
+                className="text-xs font-bold text-[#D92D2D] hover:underline"
+              >
+                All Courses ({courses.length})
+              </Link>
             </div>
-            <Link
-              to="/learner/my-learning"
-              className="text-xs font-bold text-[#D92D2D] hover:underline"
-            >
-              All Courses ({courses.length})
-            </Link>
+
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+              {courses.map((course) => (
+                <div
+                  key={course.id}
+                  className="bg-white border-2 border-[#B6AA9A] rounded-2xl overflow-hidden shadow-2xs hover-lift flex flex-col justify-between"
+                >
+                  <div className="h-32 bg-[#C8BBAA] relative overflow-hidden">
+                    <img
+                      src={course.thumbnail}
+                      alt={course.title}
+                      className="w-full h-full object-cover"
+                    />
+                    <div className="absolute top-2.5 left-2.5">
+                      <span className="px-2 py-0.5 rounded text-[10px] font-extrabold bg-[#EAE3DA]/90 text-[#211E1A] border border-[#B6AA9A] backdrop-blur-xs">
+                        {course.category}
+                      </span>
+                    </div>
+                    <div className="absolute bottom-2.5 right-2.5">
+                      <span className={`px-2 py-0.5 rounded-full text-[10px] font-black shadow-xs ${
+                        course.progressPercent >= 100
+                          ? 'bg-emerald-600 text-white'
+                          : 'bg-[#211E1A]/85 text-white'
+                      }`}>
+                        {course.progressPercent}% Complete
+                      </span>
+                    </div>
+                  </div>
+
+                  <div className="p-4 space-y-3 flex-1 flex flex-col justify-between">
+                    <div>
+                      <h3 className="font-extrabold text-sm text-[#211E1A] line-clamp-1">
+                        {course.title}
+                      </h3>
+                      <p className="text-[11px] text-[#71675D] mt-0.5">
+                        {course.instructor}
+                      </p>
+                    </div>
+
+                    <div className="space-y-1">
+                      <div className="w-full bg-[#EAE3DA] h-1.5 rounded-full overflow-hidden border border-[#B6AA9A]/50">
+                        <div
+                          className={`h-full rounded-full transition-all duration-500 ${
+                            course.progressPercent >= 100 ? 'bg-emerald-600' : 'bg-[#D92D2D]'
+                          }`}
+                          style={{ width: `${course.progressPercent}%` }}
+                        />
+                      </div>
+                      <div className="flex justify-between text-[10px] text-[#71675D] font-semibold">
+                        <span>{course.completedLessonsCount || 0} / {course.totalLessons || 6} lessons</span>
+                        <span>{course.level}</span>
+                      </div>
+                    </div>
+
+                    <div className="pt-2 border-t border-[#B6AA9A]/40 flex items-center justify-between">
+                      <Link
+                        to={`/learner/player/${course.id}`}
+                        className="text-xs font-black text-[#D92D2D] hover:underline flex items-center gap-1"
+                      >
+                        <span>{course.progressPercent >= 100 ? 'Review Course' : 'Continue'}</span>
+                        <span>→</span>
+                      </Link>
+
+                      {course.progressPercent >= 100 && (
+                        <Link
+                          to="/learner/certificates"
+                          className="px-2 py-0.5 bg-emerald-50 text-emerald-800 border border-emerald-300 rounded text-[10px] font-bold"
+                        >
+                          Certificate 🏆
+                        </Link>
+                      )}
+                    </div>
+                  </div>
+                </div>
+              ))}
+            </div>
           </div>
 
-          <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-            {courses.map((course) => (
-              <div
-                key={course.id}
-                className="bg-white border-2 border-[#B6AA9A] rounded-2xl overflow-hidden shadow-2xs hover-lift flex flex-col justify-between"
-              >
-                <div className="h-32 bg-[#C8BBAA] relative overflow-hidden">
-                  <img
-                    src={course.thumbnail}
-                    alt={course.title}
-                    className="w-full h-full object-cover"
-                  />
-                  <div className="absolute top-2.5 left-2.5">
-                    <span className="px-2 py-0.5 rounded text-[10px] font-extrabold bg-[#EAE3DA]/90 text-[#211E1A] border border-[#B6AA9A] backdrop-blur-xs">
-                      {course.category}
-                    </span>
+          {/* Weekly Activity Grid (PROJECT.md §23 & §24) */}
+          <div className="bg-white border-2 border-[#B6AA9A] rounded-2xl p-5 shadow-2xs space-y-3">
+            <div className="flex items-center justify-between border-b border-[#B6AA9A]/50 pb-2">
+              <h3 className="text-sm font-black text-[#211E1A] flex items-center gap-2">
+                <span>📊</span>
+                <span>Weekly Study Activity Rhythm</span>
+              </h3>
+              <span className="text-[10px] font-bold text-emerald-800 bg-emerald-100 px-2 py-0.5 rounded-full">
+                Streak Maintained
+              </span>
+            </div>
+
+            <div className="grid grid-cols-7 gap-2 text-center pt-1">
+              {weekDays.map((d, i) => (
+                <div key={i} className="p-2.5 rounded-xl border border-[#B6AA9A]/60 bg-[#EAE3DA]/40 space-y-1">
+                  <span className="text-[11px] font-bold text-[#71675D] block">{d.day}</span>
+                  <div className={`w-6 h-6 rounded-lg mx-auto flex items-center justify-center text-[10px] font-black ${
+                    d.active ? 'bg-[#D92D2D] text-white shadow-2xs' : 'bg-stone-200 text-stone-400'
+                  }`}>
+                    {d.active ? '✓' : '—'}
                   </div>
-                  <div className="absolute bottom-2.5 right-2.5">
-                    <span className={`px-2 py-0.5 rounded-full text-[10px] font-black shadow-xs ${
-                      course.progressPercent >= 100
-                        ? 'bg-emerald-600 text-white'
-                        : 'bg-[#211E1A]/85 text-white'
-                    }`}>
-                      {course.progressPercent}% Complete
-                    </span>
-                  </div>
+                  <span className="text-[9px] font-mono text-[#514940] block">{d.hours}h</span>
                 </div>
-
-                <div className="p-4 space-y-3 flex-1 flex flex-col justify-between">
-                  <div>
-                    <h3 className="font-extrabold text-sm text-[#211E1A] line-clamp-1">
-                      {course.title}
-                    </h3>
-                    <p className="text-[11px] text-[#71675D] mt-0.5">
-                      {course.instructor}
-                    </p>
-                  </div>
-
-                  <div className="space-y-1">
-                    <div className="w-full bg-[#EAE3DA] h-1.5 rounded-full overflow-hidden border border-[#B6AA9A]/50">
-                      <div
-                        className={`h-full rounded-full transition-all duration-500 ${
-                          course.progressPercent >= 100 ? 'bg-emerald-600' : 'bg-[#D92D2D]'
-                        }`}
-                        style={{ width: `${course.progressPercent}%` }}
-                      />
-                    </div>
-                    <div className="flex justify-between text-[10px] text-[#71675D] font-semibold">
-                      <span>{course.completedLessonsCount || 0} / {course.totalLessons || 6} lessons</span>
-                      <span>{course.level}</span>
-                    </div>
-                  </div>
-
-                  <div className="pt-2 border-t border-[#B6AA9A]/40 flex items-center justify-between">
-                    <Link
-                      to={`/learner/player/${course.id}`}
-                      className="text-xs font-black text-[#D92D2D] hover:underline flex items-center gap-1"
-                    >
-                      <span>{course.progressPercent >= 100 ? 'Review Course' : 'Continue'}</span>
-                      <span>→</span>
-                    </Link>
-
-                    {course.progressPercent >= 100 && (
-                      <Link
-                        to="/learner/certificates"
-                        className="px-2 py-0.5 bg-emerald-50 text-emerald-800 border border-emerald-300 rounded text-[10px] font-bold"
-                      >
-                        Certificate 🏆
-                      </Link>
-                    )}
-                  </div>
-                </div>
-              </div>
-            ))}
+              ))}
+            </div>
           </div>
         </div>
 
@@ -390,19 +469,20 @@ export default function LearnerDashboard() {
             </div>
           </div>
 
-          {/* Gamification Achievements */}
+          {/* Gamification Achievements & Leaderboard Jump */}
           <div className="bg-white border-2 border-[#B6AA9A] rounded-2xl p-5 shadow-2xs space-y-4">
             <div className="flex items-center justify-between border-b border-[#B6AA9A]/50 pb-2">
               <h3 className="font-black text-sm text-[#211E1A] flex items-center gap-1.5">
                 <span>🏅</span>
                 <span>Recent Badges</span>
               </h3>
-              <Link
-                to="/learner/profile"
+              <button
+                type="button"
+                onClick={() => setShowLeaderboard(true)}
                 className="text-xs font-bold text-[#D92D2D] hover:underline"
               >
-                View All
-              </Link>
+                Leaderboard 🏆
+              </button>
             </div>
 
             <div className="grid grid-cols-2 gap-2.5">
@@ -424,6 +504,23 @@ export default function LearnerDashboard() {
           </div>
         </div>
       </div>
+
+      {/* Modals */}
+      <LeaderboardModal
+        isOpen={showLeaderboard}
+        onClose={() => setShowLeaderboard(false)}
+      />
+
+      <PracticeTestModal
+        isOpen={showPracticeTest}
+        onClose={() => setShowPracticeTest(false)}
+      />
+
+      <AIAssistantDrawer
+        isOpen={showAIAssistant}
+        onClose={() => setShowAIAssistant(false)}
+        contextLesson={{ title: 'Deep Learning with PyTorch 2.0' }}
+      />
     </div>
   );
 }

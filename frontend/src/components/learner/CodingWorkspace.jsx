@@ -2,15 +2,18 @@ import React, { useState } from 'react';
 
 export default function CodingWorkspace({
   lesson,
-  onCompleteExercise
+  onCompleteExercise,
+  onOpenAIAssistant
 }) {
   const initialCode = lesson?.starterCode || `# Python Coding Workspace\ndef solution():\n    return "Hello LearnSpace"\n\nprint(solution())`;
   const [code, setCode] = useState(initialCode);
-  const [activeTab, setActiveTab] = useState('problem'); // 'problem', 'hints'
   const [output, setOutput] = useState('');
   const [isRunning, setIsRunning] = useState(false);
   const [testResults, setTestResults] = useState(null);
   const [selectedLanguage, setSelectedLanguage] = useState('Python 3.11');
+  const [customInput, setCustomInput] = useState('');
+  const [showCustomInput, setShowCustomInput] = useState(false);
+  const [copied, setCopied] = useState(false);
 
   const testCases = lesson?.testCases || [
     { id: 'tc-1', input: 'Default sample test', expected: 'Output verified', description: 'Sample validation' }
@@ -24,28 +27,51 @@ export default function CodingWorkspace({
     }
   };
 
+  const handleCopyCode = () => {
+    navigator.clipboard?.writeText(code);
+    setCopied(true);
+    setTimeout(() => setCopied(false), 2000);
+  };
+
+  const handleFormatCode = () => {
+    // Simple indentation beautification simulation
+    const formatted = code
+      .split('\n')
+      .map(line => line.trimEnd())
+      .join('\n');
+    setCode(formatted);
+  };
+
   const handleRunCode = () => {
     setIsRunning(true);
-    setOutput('Executing script in isolated Python sandbox...\n');
+    setOutput(`[${selectedLanguage}] Compiling and executing in isolated sandbox...\n`);
 
     setTimeout(() => {
       setIsRunning(false);
-      // Simulate realistic output execution
-      let mockOutput = '>>> Running user script:\n';
+      let mockOutput = `>>> [${selectedLanguage} Exec Engine]\n`;
+      if (customInput.trim()) {
+        mockOutput += `STDIN provided: "${customInput}"\n`;
+      }
+
       if (code.includes('log_softmax_custom')) {
-        mockOutput += 'Computed log probabilities: [-0.4076, -1.4076, -2.3076]\nCross-entropy loss: 2.4076\nExecution completed with status code 0.';
+        mockOutput += 'Computed log probabilities: [-0.4076, -1.4076, -2.3076]\nCross-entropy loss: 2.4076\nExecution finished with status 0.';
       } else if (code.includes('multi_head_attention_summary')) {
-        mockOutput += 'Configuration verified: {\'num_heads\': 8, \'d_model\': 512, \'d_k\': 64, \'scale_factor\': 0.125}\nExecution completed with status code 0.';
+        mockOutput += 'Attention projection dimensions verified:\n{\'num_heads\': 8, \'d_model\': 512, \'d_k\': 64, \'scale_factor\': 0.125}\nStatus code: 0.';
       } else {
-        mockOutput += 'Program Output:\n' + 'Ready to learn!\n\nProcess finished with exit code 0 (execution time: 38ms).';
+        mockOutput += 'Program Output:\nReady to learn!\n\nProcess finished with exit code 0 (runtime: 38ms, memory: 12.4 MB).';
       }
       setOutput(mockOutput);
     }, 400);
   };
 
+  const handleStopExecution = () => {
+    setIsRunning(false);
+    setOutput(prev => prev + '\n[Process manually terminated by user SIGINT]');
+  };
+
   const handleSubmitSolution = () => {
     setIsRunning(true);
-    setOutput('Evaluating submission against 3 test cases...\n');
+    setOutput(`Evaluating solution against ${testCases.length} automated test cases...\n`);
 
     setTimeout(() => {
       setIsRunning(false);
@@ -70,7 +96,7 @@ export default function CodingWorkspace({
       setOutput(
         `>>> All ${results.length} Test Cases Passed Successfully!\n` +
         `Execution time: 42ms | Memory: 14.2 MB\n` +
-        `Evaluation score: 100/100 points awarded.\n`
+        `Score: 100/100 points awarded.\n`
       );
 
       if (onCompleteExercise) {
@@ -79,8 +105,7 @@ export default function CodingWorkspace({
     }, 600);
   };
 
-  // Generate numbered lines for code editor
-  const lineCount = Math.max(12, code.split('\n').length);
+  const lineCount = Math.max(14, code.split('\n').length);
   const lineNumbers = Array.from({ length: lineCount }, (_, i) => i + 1);
 
   return (
@@ -91,27 +116,61 @@ export default function CodingWorkspace({
           <span className="w-3 h-3 rounded-full bg-red-500 inline-block" />
           <span className="w-3 h-3 rounded-full bg-yellow-500 inline-block" />
           <span className="w-3 h-3 rounded-full bg-green-500 inline-block" />
-          <span className="ml-2 font-bold text-stone-300 font-sans text-xs">
-            Integrated Coding Sandbox
+          <span className="ml-2 font-bold text-stone-300 font-sans text-xs flex items-center gap-1.5">
+            <span>💻</span>
+            <span>Integrated Coding Workspace</span>
           </span>
         </div>
 
-        <div className="flex items-center gap-2">
+        {/* Toolbar Controls */}
+        <div className="flex items-center gap-2 flex-wrap">
+          {/* Multi-language Selector (PROJECT.md §11) */}
           <select
             value={selectedLanguage}
             onChange={(e) => setSelectedLanguage(e.target.value)}
             className="bg-[#1E1C1A] text-stone-300 text-xs px-2.5 py-1 rounded-lg border border-stone-600 focus:outline-none"
           >
             <option value="Python 3.11">Python 3.11</option>
-            <option value="C++ 20">C++ 20</option>
             <option value="JavaScript (Node 20)">JavaScript (Node 20)</option>
+            <option value="C++ 20">C++ 20</option>
+            <option value="SQL (PostgreSQL 16)">SQL (PostgreSQL 16)</option>
           </select>
+
+          {/* AI Helper Trigger (PROJECT.md §25) */}
+          {onOpenAIAssistant && (
+            <button
+              type="button"
+              onClick={onOpenAIAssistant}
+              className="px-2.5 py-1 bg-[#D92D2D]/20 hover:bg-[#D92D2D]/40 text-red-300 rounded-lg border border-[#D92D2D]/60 transition-colors flex items-center gap-1 text-[11px] font-sans font-bold"
+            >
+              <span>🤖</span>
+              <span>AI Code Assist</span>
+            </button>
+          )}
+
+          <button
+            type="button"
+            onClick={handleCopyCode}
+            className="px-2 py-1 bg-stone-800 hover:bg-stone-700 text-stone-300 rounded-lg border border-stone-600 transition-colors"
+            title="Copy code"
+          >
+            {copied ? '✓ Copied' : '📋 Copy'}
+          </button>
+
+          <button
+            type="button"
+            onClick={handleFormatCode}
+            className="px-2 py-1 bg-stone-800 hover:bg-stone-700 text-stone-300 rounded-lg border border-stone-600 transition-colors"
+            title="Format Code"
+          >
+            ⚡ Format
+          </button>
 
           <button
             type="button"
             onClick={handleResetCode}
-            className="px-2.5 py-1 bg-stone-800 hover:bg-stone-700 text-stone-300 rounded-lg border border-stone-600 transition-colors"
-            title="Reset code"
+            className="px-2 py-1 bg-stone-800 hover:bg-stone-700 text-stone-300 rounded-lg border border-stone-600 transition-colors"
+            title="Reset to starter template"
           >
             ↺ Reset
           </button>
@@ -183,9 +242,28 @@ export default function CodingWorkspace({
         <div className="lg:col-span-7 flex flex-col bg-[#1A1816]">
           {/* Editor Header Bar */}
           <div className="px-4 py-1.5 bg-[#221F1B] border-b border-stone-800 flex items-center justify-between text-[11px] text-stone-400">
-            <span>solution.py</span>
-            <span>Tab size: 4 spaces</span>
+            <span>solution.py ({selectedLanguage})</span>
+            <button
+              type="button"
+              onClick={() => setShowCustomInput(prev => !prev)}
+              className="text-[10px] text-amber-300 hover:underline font-sans"
+            >
+              {showCustomInput ? 'Hide Custom STDIN' : '+ Add Custom Input'}
+            </button>
           </div>
+
+          {/* Optional Custom Input Box */}
+          {showCustomInput && (
+            <div className="p-2 bg-[#25221E] border-b border-stone-800">
+              <input
+                type="text"
+                value={customInput}
+                onChange={(e) => setCustomInput(e.target.value)}
+                placeholder="Enter custom input string or numbers for stdin..."
+                className="w-full px-2.5 py-1 text-xs bg-[#1A1816] text-stone-200 rounded border border-stone-700 focus:outline-none"
+              />
+            </div>
+          )}
 
           {/* Line Numbers + Textarea Container */}
           <div className="flex-1 flex overflow-hidden relative min-h-[300px]">
@@ -208,10 +286,20 @@ export default function CodingWorkspace({
           {/* Editor Action Buttons */}
           <div className="p-3 bg-[#24211D] border-t border-stone-700 flex items-center justify-between gap-3">
             <span className="text-[11px] text-stone-400 hidden sm:inline font-sans">
-              Press "Run Code" to preview output before submitting
+              Press "Run Code" to test output
             </span>
 
             <div className="flex items-center gap-2.5 w-full sm:w-auto justify-end">
+              {isRunning && (
+                <button
+                  type="button"
+                  onClick={handleStopExecution}
+                  className="px-3 py-2 bg-red-900/80 hover:bg-red-800 text-white rounded-xl text-xs font-bold font-sans transition-colors"
+                >
+                  ■ Stop
+                </button>
+              )}
+
               <button
                 type="button"
                 onClick={handleRunCode}

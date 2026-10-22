@@ -1,25 +1,33 @@
-import React from 'react';
+import React, { useState } from 'react';
 import { Outlet } from 'react-router-dom';
-import Navbar from '../components/layout/Navbar';
-import Sidebar from '../components/layout/Sidebar';
+import LearnerSidebar from '../components/learner/LearnerSidebar';
+import LearnerNavbar from '../components/learner/LearnerNavbar';
 
 export default function LearnerLayout() {
-  const links = [
-    { to: '/learner/dashboard', label: 'Dashboard' },
-    { to: '/learner/my-learning', label: 'My Learning' },
-    { to: '/learner/wishlist', label: 'Wishlist' },
-    { to: '/learner/certificates', label: 'Certificates' },
-    { to: '/learner/profile', label: 'Profile' }
-  ];
+  const [isSidebarCollapsed, setIsSidebarCollapsed] = useState(false);
+  const [isMobileDrawerOpen, setIsMobileDrawerOpen] = useState(false);
 
   return (
-    <div className="min-h-screen flex flex-col bg-gray-50">
-      <Navbar />
-      <div className="flex flex-1">
-        <Sidebar links={links} />
-        <div className="flex-1 p-6">
+    <div className="min-h-screen flex bg-[#D6D0C8] text-[#211E1A] font-sans transition-colors duration-200">
+      {/* High-Polish Learner Sidebar */}
+      <LearnerSidebar
+        isCollapsed={isSidebarCollapsed}
+        onToggleCollapse={() => setIsSidebarCollapsed(prev => !prev)}
+        isMobileOpen={isMobileDrawerOpen}
+        onCloseMobile={() => setIsMobileDrawerOpen(false)}
+      />
+
+      {/* Main Content Area */}
+      <div className="flex-1 flex flex-col min-w-0 min-h-screen">
+        {/* Learner Top Bar */}
+        <LearnerNavbar
+          onOpenMobileSidebar={() => setIsMobileDrawerOpen(true)}
+        />
+
+        {/* Page Content Container */}
+        <main className="flex-1 p-4 sm:p-6 lg:p-8 min-w-0">
           <Outlet />
-        </div>
+        </main>
       </div>
     </div>
   );
